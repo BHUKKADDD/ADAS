@@ -2,6 +2,8 @@ package com.example.adas
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.RectF
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -22,9 +24,16 @@ import java.nio.channels.FileChannel
  *  3. Place `coco_labels.txt` in app/src/main/assets/
  *
  * YOLOv8n TFLite output layout: [1, 84, 8400]
- *   - Rows 0–3    : cx, cy, w, h  (pixel coords relative to INPUT_SIZE)
+ *   - Rows 0–3    : cx, cy, w, h  (normalized [0,1] relative to the INPUT_SIZE square)
  *   - Rows 4–83   : class scores  (already sigmoided by TFLite export)
- *   - Columns     : 8400 anchor predictions
+ *   - Columns     : anchor predictions
+ *
+ * ── Aspect-ratio fix ────────────────────────────────────────────────────────
+ * Instead of anisotropically stretching the frame to INPUT_SIZE×INPUT_SIZE
+ * (which distorts objects and hurts detection), the frame is **letterboxed**:
+ * scaled preserving aspect ratio and padded to a square with neutral gray.
+ * The padding/scale is then undone on the output coords so every box is
+ * returned in normalized [0,1] relative to the ORIGINAL frame.
  */
 class InferenceEngine(private val context: Context) {
 
@@ -38,7 +47,18 @@ class InferenceEngine(private val context: Context) {
         // Anchors for imgsz=320: feature maps 40×40 + 20×20 + 10×10 = 2100
         // (Would be 8400 for imgsz=640: 80×80 + 40×40 + 20×20)
         private const val NUM_ANCHORS          = 2100
+        // YOLO letterbox pad color (neutral gray)
+        private const val PAD_GRAY             = 114
     }
+
+    /** Letterbox transform applied to a frame, used to undo padding on outputs. */
+    private data class Letterbox(
+        val padX: Float,
+        val padY: Float,
+        val contentW: Float,   // scaled frame width inside the square (px)
+        val contentH: Float,   // scaled frame height inside the square (px)
+        val size: Int          // square side (= INPUT_SIZE)
+    )
 
     // Lazy-loaded — model file is memory-mapped from assets on first use
     private val interpreter: Interpreter by lazy {
@@ -70,36 +90,50 @@ class InferenceEngine(private val context: Context) {
     /**
      * Run YOLOv8n inference on [bitmap].
      * Executes on [Dispatchers.Default] (background thread).
-     * Returns normalized [Detection] objects (coords in [0,1]) for the overlay.
+     * Returns normalized [Detection] objects (coords in [0,1] of the original frame).
      */
     suspend fun detect(bitmap: Bitmap): List<Detection> = withContext(Dispatchers.Default) {
-        val inputBuffer = preprocessBitmap(bitmap)
+        val (inputBuffer, letterbox) = preprocessBitmap(bitmap)
 
-        // Output buffer: [1, 84, 8400]
+        // Output buffer: [1, 84, NUM_ANCHORS]
         val outputArray = Array(1) { Array(84) { FloatArray(NUM_ANCHORS) } }
 
         interpreter.run(inputBuffer, outputArray)
 
-        val rawDetections = parseOutput(outputArray[0], bitmap.width, bitmap.height)
+        val rawDetections = parseOutput(outputArray[0], letterbox)
         applyNms(rawDetections)
     }
 
     // ── Pre-processing ────────────────────────────────────────────────────────
 
     /**
-     * Resize bitmap to INPUT_SIZE × INPUT_SIZE and pack into a float32 ByteBuffer.
-     * Pixel values normalized to [0, 1] in RGB channel order.
+     * Letterbox [bitmap] into an INPUT_SIZE×INPUT_SIZE square preserving aspect
+     * ratio (gray padding), and pack into a float32 ByteBuffer in RGB order,
+     * pixels normalized to [0,1].
+     *
+     * Returns the buffer plus the [Letterbox] transform needed to undo padding.
      */
-    private fun preprocessBitmap(bitmap: Bitmap): ByteBuffer {
-        val scaled = Bitmap.createScaledBitmap(bitmap, INPUT_SIZE, INPUT_SIZE, true)
+    private fun preprocessBitmap(bitmap: Bitmap): Pair<ByteBuffer, Letterbox> {
+        val s = INPUT_SIZE
+        val scale = minOf(s.toFloat() / bitmap.width, s.toFloat() / bitmap.height)
+        val contentW = Math.round(bitmap.width * scale)
+        val contentH = Math.round(bitmap.height * scale)
+        val padX = (s - contentW) / 2f
+        val padY = (s - contentH) / 2f
 
-        // Float32: 4 bytes × 3 channels × INPUT_SIZE²
+        val square = Bitmap.createBitmap(s, s, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(square)
+        canvas.drawColor(Color.rgb(PAD_GRAY, PAD_GRAY, PAD_GRAY))
+        val scaled = Bitmap.createScaledBitmap(bitmap, contentW, contentH, true)
+        canvas.drawBitmap(scaled, padX, padY, null)
+
+        // Float32: 4 bytes × 3 channels × s²
         val buffer = ByteBuffer
-            .allocateDirect(4 * 3 * INPUT_SIZE * INPUT_SIZE)
+            .allocateDirect(4 * 3 * s * s)
             .order(ByteOrder.nativeOrder())
 
-        val pixels = IntArray(INPUT_SIZE * INPUT_SIZE)
-        scaled.getPixels(pixels, 0, INPUT_SIZE, 0, 0, INPUT_SIZE, INPUT_SIZE)
+        val pixels = IntArray(s * s)
+        square.getPixels(pixels, 0, s, 0, 0, s, s)
 
         for (pixel in pixels) {
             buffer.putFloat(((pixel shr 16) and 0xFF) / 255.0f) // R
@@ -108,31 +142,32 @@ class InferenceEngine(private val context: Context) {
         }
 
         buffer.rewind()
-        return buffer
+        return buffer to Letterbox(padX, padY, contentW.toFloat(), contentH.toFloat(), s)
     }
 
     // ── Output Parsing ────────────────────────────────────────────────────────
 
     /**
-     * Converts raw [1, 84, 8400] model output into [Detection] objects.
+     * Converts raw [1, 84, NUM_ANCHORS] model output into [Detection] objects.
      *
-     * YOLOv8 TFLite output is transposed compared to ONNX:
      *   output[feature_index][anchor_index]
-     *   - feature 0..3  → cx, cy, w, h (in INPUT_SIZE pixel space)
+     *   - feature 0..3  → cx, cy, w, h (normalized [0,1] of the INPUT_SIZE square)
      *   - feature 4..83 → class_0 .. class_79 confidence scores
      *
-     * Bounding boxes are converted to normalized [0,1] coords scaled to
-     * the original camera frame dimensions for the overlay.
+     * Coordinates are un-letterboxed back to normalized [0,1] of the ORIGINAL frame.
      */
     private fun parseOutput(
         output: Array<FloatArray>,
-        origW: Int,
-        origH: Int
+        lb: Letterbox
     ): List<Detection> {
         val results = mutableListOf<Detection>()
 
+        // Undo letterbox: square-normalized coord → original-frame-normalized coord
+        fun unpadX(nx: Float) = ((nx * lb.size) - lb.padX) / lb.contentW
+        fun unpadY(ny: Float) = ((ny * lb.size) - lb.padY) / lb.contentH
+
         for (i in 0 until NUM_ANCHORS) {
-            // Center-format box, already normalized to [0,1] by the TFLite export
+            // Center-format box, normalized to [0,1] of the INPUT_SIZE square
             val cx = output[0][i]
             val cy = output[1][i]
             val bw = output[2][i]
@@ -152,14 +187,12 @@ class InferenceEngine(private val context: Context) {
             // Skip low-confidence predictions early
             if (maxScore < CONFIDENCE_THRESHOLD) continue
 
-            // Convert center-format (cx, cy, w, h) to corner-format (left, top, right, bottom).
-            // The YOLOv8 TFLite export already emits coordinates normalized to [0,1],
-            // so they are used directly — dividing by INPUT_SIZE here would collapse
-            // every box into the top-left corner.
-            val left   = cx - bw / 2f
-            val top    = cy - bh / 2f
-            val right  = cx + bw / 2f
-            val bottom = cy + bh / 2f
+            // Corner-format in square-normalized space, then un-letterbox to
+            // original-frame-normalized space.
+            val left   = unpadX(cx - bw / 2f)
+            val top    = unpadY(cy - bh / 2f)
+            val right  = unpadX(cx + bw / 2f)
+            val bottom = unpadY(cy + bh / 2f)
 
             val box = RectF(
                 left.coerceIn(0f, 1f),
@@ -168,7 +201,7 @@ class InferenceEngine(private val context: Context) {
                 bottom.coerceIn(0f, 1f)
             )
 
-            // Skip degenerate boxes (boxes that are too small to be meaningful)
+            // Skip degenerate boxes (too small to be meaningful)
             if (box.width() < 0.01f || box.height() < 0.01f) continue
 
             val label = if (bestClass < labels.size) labels[bestClass] else "object"

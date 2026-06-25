@@ -24,8 +24,6 @@
   - [CameraX Pipeline](#camerax-pipeline)
   - [Inference Engine](#inference-engine)
   - [Detection Overlay](#detection-overlay)
-- [Cloud Backend](#️-cloud-backend)
-- [Legacy Edge Modules](#-legacy-edge-modules-python)
 - [ESP32-P4 Firmware](#-esp32-p4-eye-firmware-archived)
 - [Download & Install](#️-download--install)
 - [Build from Source](#️-build-from-source)
@@ -244,79 +242,10 @@ val labelColors = mapOf(
 )
 ```
 
----
-
-## ☁️ Cloud Backend
-
-The cloud side receives anomaly clips and telemetry from the app over Wi-Fi/LTE. Code lives in `cloud_backend/`.
-
-| File | Role |
-|------|------|
-| `cloud_scorer.py` | Loads `.npz` frame clips, runs ConvLSTM inference, returns enriched JSON with temporal anomaly score |
-
-The **ConvLSTM** (~500K parameters) processes sequences of frames to detect time-dependent anomalies (e.g., a vehicle that *suddenly* swerves, rather than just one that exists in a frame).
-
-```python
-from cloud_backend.cloud_scorer import CloudAnomalyScorer
-
-scorer = CloudAnomalyScorer()
-scorer.load_model()
-
-result = scorer.score_clip("clips/20260403_031425_clip.npz")
-print(result.temporal_score)      # 0.78
-print(result.is_critical_anomaly) # True
-```
-
----
-
-## 🐍 Legacy Edge Modules (Python)
-
-The original Raspberry Pi Python pipeline is preserved in `legacy_python_edge/src/` as a reference implementation and for development/testing purposes.
-
-| Module | What it does |
-|--------|-------------|
-| `camera_module.py` | Threaded OpenCV frame capture into a ring buffer |
-| `obd_simulator.py` | Generates realistic OBD-II telemetry at 10 Hz (speed, RPM, steering, brake) |
-| `active_learner.py` | YOLOv8n inference + active learning uncertainty scoring |
-| `adaptive_threshold.py` | Environment-aware dynamic anomaly threshold (adapts to night, rain, traffic) |
-| `kalman_tracker.py` | Multi-object Kalman tracker with persistent IDs and trajectory analysis |
-| `clip_buffer.py` | Rolling 2-second frame window; flushes to `.npz` on anomaly trigger |
-| `temporal_model.py` | ConvLSTM network definition (~500K params, PyTorch) |
-| `data_logger.py` | Synchronized JPEG frame + JSON telemetry writer |
-| `main.py` | `EdgeDashPipeline` orchestrator — starts all threads, runs main loop |
-
-### Run the Python Pipeline
-
-```bash
-cd legacy_python_edge
-
-# Install dependencies
-pip install -r ../requirements.txt
-
-# Optional: download YOLOv8n weights
-python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')"
-mv yolov8n.pt models/
-
-# Run (works without Pi, camera, or real OBD hardware — all mocked)
-python -m src.main
-```
-
-### Automated Tests (78 total)
-
-```bash
-python -m pytest ../tests/ -v
-
-# By suite:
-python -m pytest ../tests/test_kalman_tracker.py -v       # 30 tests
-python -m pytest ../tests/test_adaptive_threshold.py -v   # 21 tests
-python -m pytest ../tests/test_temporal.py -v             # 27 tests
-```
-
-| Suite | Tests | Coverage |
-|-------|:-----:|----------|
-| `test_kalman_tracker` | 30 | IoU computation, greedy matching, predict/update, trajectory scoring |
-| `test_adaptive_threshold` | 21 | Environment classification, threshold clamping, sensitivity multipliers |
-| `test_temporal` | 27 | ClipBuffer ops, ConvLSTM shapes, MockTemporalScorer, CloudAnomalyScorer |
+> **Note:** The cloud backend (ConvLSTM temporal scorer, ingestion API, annotation
+> pipeline) and the original Raspberry Pi Python edge pipeline are **planned/archived**
+> and are no longer part of this repository — see the [Roadmap](#-roadmap) (Phase 4).
+> The shipping product is the on-device Android app.
 
 ---
 
@@ -451,19 +380,12 @@ val interpreter = Interpreter(model, options)
 | Min SDK | API 24 (Android 7.0) |
 | Target SDK | API 36 |
 
-### 🐍 Cloud Backend & Legacy Python
+### 🛠️ Model Tooling (PC, one-time)
 
 | Component | Technology |
 |-----------|-----------|
-| Language | Python 3.9+ |
-| Object Detection | Ultralytics YOLOv8 Nano |
-| Computer Vision | OpenCV (headless) |
-| Object Tracking | Custom 7D Kalman Filter (NumPy) |
-| Temporal Model | ConvLSTM (PyTorch, cloud-only, ~500K params) |
-| Inference Runtime | ONNX Runtime (ARM-optimized) |
-| CAN Bus | python-can / custom mock simulator |
-| Image Processing | Pillow, NumPy |
-| Testing | pytest (78 tests) |
+| Export | Ultralytics YOLOv8 Nano → TFLite (`export_model.py`) |
+| Verification | `check_tflite_scale.py` (TFLite output sanity check) |
 
 ---
 
@@ -535,20 +457,6 @@ ADAS/
 │   ├── build.gradle.kts
 │   └── gradle/libs.versions.toml
 │
-├── cloud_backend/                      # ☁️ Cloud-side scoring
-│   └── cloud_scorer.py                 # ConvLSTM clip inference
-│
-├── legacy_python_edge/                 # 🐍 Original Raspberry Pi code
-│   └── src/
-│       ├── main.py                     # Pipeline orchestrator
-│       ├── camera_module.py
-│       ├── obd_simulator.py
-│       ├── active_learner.py
-│       ├── adaptive_threshold.py
-│       ├── kalman_tracker.py
-│       ├── clip_buffer.py
-│       └── temporal_model.py
-│
 ├── esp32_firmware/                     # 🔌 ESP32-P4 C++ firmware (archived)
 │   └── main/
 │       ├── main.cpp
@@ -558,7 +466,8 @@ ADAS/
 │       ├── can_obd_task.cpp
 │       └── kalman_tracker.cpp
 │
-├── tests/                              # 78 automated tests (pytest)
+├── export_model.py                     # YOLOv8n → TFLite export (run on PC)
+├── check_tflite_scale.py               # TFLite output sanity check
 ├── requirements.txt
 └── README.md
 ```
