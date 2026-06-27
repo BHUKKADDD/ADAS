@@ -1,40 +1,40 @@
 <div align="center">
 
-# 🚗 ADAS — AI Dashcam for Indian Roads
+# ADAS — AI Dashcam for Indian Roads
 
 **A full-stack, on-device Advanced Driver Assistance System built for India's chaotic, unstructured traffic — powered by a native Android app running real-time object detection entirely on your smartphone's camera, with zero cloud dependency.**
 
-[![Android](https://img.shields.io/badge/Platform-Android%207.0%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)](#-android-adas-app)
+[![Android](https://img.shields.io/badge/Platform-Android%207.0%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)](#android-adas-app)
 [![Kotlin](https://img.shields.io/badge/Language-Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](#tech-stack)
 [![TFLite](https://img.shields.io/badge/Inference-TensorFlow%20Lite-FF6F00?style=for-the-badge&logo=tensorflow&logoColor=white)](#inference-engine)
 [![CameraX](https://img.shields.io/badge/Camera-CameraX%201.4-4285F4?style=for-the-badge&logo=google&logoColor=white)](#camerax-pipeline)
-[![APK](https://img.shields.io/badge/⬇%EF%B8%8F%20Download-Debug%20APK%20%7E27MB-4CAF50?style=for-the-badge)](#️-download--install)
+[![APK](https://img.shields.io/badge/Download-Debug%20APK%20%7E27MB-4CAF50?style=for-the-badge)](#download--install)
 [![Personal Project](https://img.shields.io/badge/Project-Personal-FF4081?style=for-the-badge&logo=github&logoColor=white)](#)
 
 </div>
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 
-- [The Problem — Why India Needs Its Own ADAS](#-the-problem--why-india-needs-its-own-adas)
-- [The Solution — Phone as the Edge Node](#-the-solution--phone-as-the-edge-node)
-- [System Architecture](#️-system-architecture)
-- [Android ADAS App](#-android-adas-app)
+- [The Problem — Why India Needs Its Own ADAS](#the-problem--why-india-needs-its-own-adas)
+- [The Solution — Phone as the Edge Node](#the-solution--phone-as-the-edge-node)
+- [System Architecture](#system-architecture)
+- [Android ADAS App](#android-adas-app)
   - [CameraX Pipeline](#camerax-pipeline)
   - [Inference Engine](#inference-engine)
   - [Detection Overlay](#detection-overlay)
-- [ESP32-P4 Firmware](#-esp32-p4-eye-firmware-archived)
-- [Download & Install](#️-download--install)
-- [Build from Source](#️-build-from-source)
-- [Plugging in a Real Model](#-plugging-in-a-real-tflite-model)
-- [Tech Stack](#-tech-stack)
-- [Roadmap](#-roadmap)
-- [License](#-license)
+- [ESP32-P4 Firmware](#esp32-p4-eye-firmware-archived)
+- [Download & Install](#download--install)
+- [Build from Source](#build-from-source)
+- [Plugging in a Real Model](#plugging-in-a-real-tflite-model)
+- [Tech Stack](#tech-stack)
+- [Roadmap](#roadmap)
+- [License](#license)
 
 ---
 
-## 🇮🇳 The Problem — Why India Needs Its Own ADAS
+## The Problem — Why India Needs Its Own ADAS
 
 Standard ADAS systems are trained on orderly Western roads — clear lane markings, rule-following drivers, predictable intersections. They **consistently fail in India**.
 
@@ -52,20 +52,20 @@ Western open datasets (nuScenes, Waymo, KITTI) contain essentially zero represen
 
 ---
 
-## 💡 The Solution — Phone as the Edge Node
+## The Solution — Phone as the Edge Node
 
 Instead of dedicated hardware, we turn every Android phone into an ADAS sensor:
 
-- 📷 **Camera** — High-resolution sensor already built in
-- 🧠 **NPU/GPU** — Runs quantized TFLite models at real-time frame rates
-- 📡 **Connectivity** — Wi-Fi / LTE already present for selective cloud upload
-- 🔋 **Power** — Charged via car USB / wireless pad
+- **Camera** — High-resolution sensor already built in
+- **NPU/GPU** — Runs quantized TFLite models at real-time frame rates
+- **Connectivity** — Wi-Fi / LTE already present for selective cloud upload
+- **Power** — Charged via car USB / wireless pad
 
 This eliminates the need for a Raspberry Pi, ESP32, or any dedicated hardware — your daily driver phone **is** the edge node.
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 ### Full System — Edge to Cloud
 
@@ -79,9 +79,9 @@ flowchart TB
     classDef data     fill:#0d1b2a,stroke:#69F0AE,stroke-width:2px,color:#69F0AE
     classDef decision fill:#1a0a2e,stroke:#FF4081,stroke-width:2px,color:#FF8A80
 
-    subgraph PHONE ["📱 Android ADAS App — On-Device"]
+    subgraph PHONE ["Android ADAS App — On-Device"]
         direction TB
-        CAM["📷 Rear Camera\nMIPI Sensor"]:::camera
+        CAM["Rear Camera\nMIPI Sensor"]:::camera
         CX["CameraX\nImageAnalysis"]:::camera
         FA["FrameAnalyzer\nBackground Coroutine"]:::camera
         IE["InferenceEngine\nTFLite INT8 · YOLOv8n @ 320px"]:::ml
@@ -90,7 +90,7 @@ flowchart TB
         PV["PreviewView\nFull-Screen Camera Feed"]:::camera
     end
 
-    subgraph CLOUD ["☁️ Cloud Backend"]
+    subgraph CLOUD ["Cloud Backend"]
         direction LR
         ING["Ingestion API"]:::cloud
         CONV["ConvLSTM\nTemporal Scorer"]:::cloud
@@ -116,14 +116,14 @@ flowchart LR
     classDef ui     fill:#0f3460,stroke:#E040FB,stroke-width:2px,color:#E040FB
     classDef gate   fill:#1a1a2e,stroke:#FF4081,stroke-width:2px,color:#FF8A80
 
-    CAM["📷 Camera\nMIPI"]:::hw
+    CAM["Camera\nMIPI"]:::hw
     ANAL["ImageAnalysis\nuse-case"]:::hw
     PROXY["ImageProxy\nYUV_420_888"]:::thread
     BMP["Bitmap\nConversion\ntoBitmap"]:::thread
     INF["TFLite\nInterpreter\nDispatchers.Default"]:::infer
     FILT{"Confidence\n≥ 0.4?"}:::gate
     OVER["DetectionOverlay\nCompose Canvas\nDispatchers.Main"]:::ui
-    DROP["Drop Frame\n🗑️"]:::gate
+    DROP["Drop Frame"]:::gate
 
     CAM --> ANAL --> PROXY --> BMP --> INF --> FILT
     FILT -- Yes --> OVER
@@ -139,12 +139,12 @@ flowchart TD
     classDef store  fill:#0d1b2a,stroke:#69F0AE,stroke-width:2px,color:#69F0AE
     classDef gate   fill:#1a0a2e,stroke:#FF4081,stroke-width:2px,color:#FF8A80
 
-    UPLOAD["📤 Anomaly Clip Upload\n.npz — frames + telemetry"]:::ingest
+    UPLOAD["Anomaly Clip Upload\n.npz — frames + telemetry"]:::ingest
     LOAD["Load Clip\nCloudAnomalyScorer"]:::score
     CONV["ConvLSTM\nSequence Inference\n~500K params"]:::score
     SCORE{"Temporal\nScore ≥ 0.6?"}:::gate
-    HIGH["🔴 HIGH Priority\nFast-track for annotation"]:::store
-    LOW["🟡 STANDARD\nQueue for batch review"]:::store
+    HIGH["HIGH Priority\nFast-track for annotation"]:::store
+    LOW["STANDARD\nQueue for batch review"]:::store
     ANNOT["Annotation Store\n3D Scene Graphs + Labels"]:::store
     VLM["VLM Training Pipeline\nLoRA Fine-tuning"]:::store
 
@@ -156,7 +156,7 @@ flowchart TD
 
 ---
 
-## 📱 Android ADAS App
+## Android ADAS App
 
 The app is written in **Kotlin with Jetpack Compose**. It is a single-activity application that:
 
@@ -244,12 +244,12 @@ val labelColors = mapOf(
 
 > **Note:** The cloud backend (ConvLSTM temporal scorer, ingestion API, annotation
 > pipeline) and the original Raspberry Pi Python edge pipeline are **planned/archived**
-> and are no longer part of this repository — see the [Roadmap](#-roadmap) (Phase 4).
+> and are no longer part of this repository — see the [Roadmap](#roadmap) (Phase 4).
 > The shipping product is the on-device Android app.
 
 ---
 
-## 🔌 ESP32-P4-EYE Firmware (Archived)
+## ESP32-P4-EYE Firmware (Archived)
 
 An intermediate hardware exploration — a FreeRTOS/C++ firmware scaffold for the ESP32-P4-EYE microcontroller. Archived in `esp32_firmware/` for reference.
 
@@ -267,12 +267,12 @@ An intermediate hardware exploration — a FreeRTOS/C++ firmware scaffold for th
 
 ---
 
-## ⬇️ Download & Install
+## Download & Install
 
 > Works on any Android phone running **Android 7.0 (API 24) or higher**.
 
 **Direct Download:**
-[⬇️ Download app-debug.apk](./app-debug.apk) (~27 MB)
+[Download app-debug.apk](./app-debug.apk) (~27 MB)
 
 ### Option 1 — ADB (Recommended)
 
@@ -290,11 +290,11 @@ adb install android_app\app\build\outputs\apk\debug\app-debug.apk
 2. **Settings → Apps → Special App Access → Install Unknown Apps** → allow your file manager
 3. Tap the APK file to install
 
-> ⚠️ **Debug build only.** For a release build, run `./gradlew assembleRelease` and sign with your keystore.
+> **Debug build only.** For a release build, run `./gradlew assembleRelease` and sign with your keystore.
 
 ---
 
-## 🛠️ Build from Source
+## Build from Source
 
 ### Prerequisites
 
@@ -324,7 +324,7 @@ On first build, Gradle will automatically download all dependencies (CameraX, TF
 
 ---
 
-## 🧠 Plugging in a Real TFLite Model
+## Plugging in a Real TFLite Model
 
 The `InferenceEngine` ships with mock detections. Replacing them with a real model takes 3 steps:
 
@@ -364,9 +364,9 @@ val interpreter = Interpreter(model, options)
 
 ---
 
-## 💻 Tech Stack
+## Tech Stack
 
-### 📱 Android App
+### Android App
 
 | Component | Technology |
 |-----------|-----------|
@@ -380,7 +380,7 @@ val interpreter = Interpreter(model, options)
 | Min SDK | API 24 (Android 7.0) |
 | Target SDK | API 36 |
 
-### 🛠️ Model Tooling (PC, one-time)
+### Model Tooling (PC, one-time)
 
 | Component | Technology |
 |-----------|-----------|
@@ -389,7 +389,7 @@ val interpreter = Interpreter(model, options)
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
 - [x] **Phase 1 — Python Edge MVP** *(Complete)*
   - [x] Threaded OpenCV capture with ring buffer
@@ -437,11 +437,11 @@ val interpreter = Interpreter(model, options)
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```
 ADAS/
-├── android_app/                        # 📱 Native Android ADAS App
+├── android_app/                        # Native Android ADAS App
 │   ├── app/
 │   │   ├── src/main/
 │   │   │   ├── java/com/example/adas/
@@ -453,11 +453,11 @@ ADAS/
 │   │   │   │   └── Detection.kt        # Data class
 │   │   │   └── assets/                 # ← Put yolov8n.tflite here
 │   │   └── build/outputs/apk/debug/
-│   │       └── app-debug.apk           # ⬇️ Prebuilt APK (~27 MB)
+│   │       └── app-debug.apk           # Prebuilt APK (~27 MB)
 │   ├── build.gradle.kts
 │   └── gradle/libs.versions.toml
 │
-├── esp32_firmware/                     # 🔌 ESP32-P4 C++ firmware (archived)
+├── esp32_firmware/                     # ESP32-P4 C++ firmware (archived)
 │   └── main/
 │       ├── main.cpp
 │       ├── camera_task.cpp
@@ -474,7 +474,7 @@ ADAS/
 
 ---
 
-## 📄 License
+## License
 
 MIT — See [LICENSE](LICENSE) for details.
 
@@ -484,6 +484,6 @@ MIT — See [LICENSE](LICENSE) for details.
 
 **A personal project by [Sushant](https://github.com/sushant-mishra-dtu)**
 
-**🇮🇳 Making India's roads safer, one edge case at a time.**
+**Making India's roads safer, one edge case at a time.**
 
 </div>
