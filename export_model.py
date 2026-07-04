@@ -58,13 +58,18 @@ def export_yolov8_tflite(
 
     model.export(**export_kwargs)
 
-    # Ultralytics saves alongside the weights, e.g. yolov8n_saved_model/yolov8n_float32.tflite
+    # Ultralytics writes the export NEXT TO THE WEIGHTS, e.g.
+    # <weights_dir>/<stem>_saved_model/<stem>_float32.tflite. For a fine-tuned run
+    # (best.pt in runs/detect/.../weights/) that is not the CWD, so resolve relative
+    # to the model file's directory, then fall back to a recursive search.
+    model_dir = Path(model_name).resolve().parent
+    stem = Path(model_name).stem
     suffix = "int8" if use_int8 else "float32"
-    tflite_path = Path(f"yolov8n_saved_model/yolov8n_{suffix}.tflite")
+    tflite_path = model_dir / f"{stem}_saved_model" / f"{stem}_{suffix}.tflite"
 
     if not tflite_path.exists():
-        # Fallback: search current dir
-        matches = list(Path(".").rglob("*.tflite"))
+        # Fallback: search next to the weights, then the current dir.
+        matches = list(model_dir.rglob("*.tflite")) or list(Path(".").rglob("*.tflite"))
         if matches:
             tflite_path = matches[0]
         else:
@@ -94,12 +99,15 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Export YOLOv8n → TFLite for ADAS Android app")
+    parser.add_argument("--model",  default="yolov8n.pt",
+                        help="Weights to export: 'yolov8n.pt' (stock) or a fine-tuned "
+                             "runs/detect/<name>/weights/best.pt (Phase 3)")
     parser.add_argument("--int8",   action="store_true", help="Export INT8 quantized model (faster, smaller)")
     parser.add_argument("--imgsz",  type=int, default=320, help="Input image size (default: 320)")
     parser.add_argument("--no-copy", action="store_true", help="Skip auto-copy to assets/ folder")
     args = parser.parse_args()
 
-    tflite_file = export_yolov8_tflite(imgsz=args.imgsz, use_int8=args.int8)
+    tflite_file = export_yolov8_tflite(model_name=args.model, imgsz=args.imgsz, use_int8=args.int8)
 
     if not args.no_copy:
         copy_to_assets(tflite_file)

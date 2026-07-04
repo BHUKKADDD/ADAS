@@ -1,0 +1,12 @@
+person
+rider
+car
+truck
+bus
+motorcycle
+bicycle
+autorickshaw
+animal
+traffic_sign
+traffic_light
+vehicle_fallback

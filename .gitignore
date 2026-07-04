@@ -20,6 +20,22 @@ models/*.onnx
 /yolov8n_saved_model/
 /calibration_*.npy
 
+# ── Phase 3 training: IDD dataset + artifacts (NON-COMMERCIAL, NO REDISTRIBUTION) ──
+# IDD is under a non-commercial research license. NEVER commit the dataset, any
+# flattened/derivative copy of it, or training outputs that embed its images
+# (train/val batch previews, label plots). See DATASET_LICENSE.md.
+IDD_Detection/
+/datasets/
+**/idd_yolo/
+*.tar
+*.tar.gz
+# Ultralytics training run outputs (train_batch*.jpg etc. contain dataset images)
+/runs/
+*_saved_model/
+*.cache
+# Base/fine-tuned .pt weights pulled or produced during training (regenerated)
+/yolo*.pt
+
 # Built app binaries (ship via GitHub Releases, not source control)
 *.apk
 

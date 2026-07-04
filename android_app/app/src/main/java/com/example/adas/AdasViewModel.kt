@@ -64,10 +64,11 @@ class AdasViewModel : ViewModel() {
     private val _alertState = MutableStateFlow(AlertState())
     val alertState: StateFlow<AlertState> = _alertState.asStateFlow()
 
-    // Labels that warrant an immediate danger alert (high-priority road hazards)
-    private val dangerLabels  = setOf("person", "bicycle", "dog", "cat")
-    // Labels that warrant a caution alert (large/fast road users)
-    private val cautionLabels = setOf("motorcycle", "car", "truck", "bus", "train")
+    // IDD classes that warrant an immediate danger alert (vulnerable / unpredictable
+    // road users — the India-specific edge cases COCO models miss)
+    private val dangerLabels  = setOf("person", "rider", "bicycle", "animal")
+    // IDD classes that warrant a caution alert (vehicles sharing the lane)
+    private val cautionLabels = setOf("motorcycle", "car", "autorickshaw", "truck", "bus", "vehicle_fallback")
 
     private fun updateAlertState(detections: List<Detection>) {
         val danger  = detections.firstOrNull { it.label in dangerLabels  && isCenterZone(it.boundingBox) }
@@ -113,6 +114,8 @@ class AdasViewModel : ViewModel() {
     }
 
     // Professional Presets (Fixed for driver safety, cannot be adjusted)
+    // confidenceThreshold is the single source of truth for detection filtering:
+    // its value is passed into InferenceEngine when the camera screen is created.
     val confidenceThreshold: StateFlow<Float> = MutableStateFlow(0.45f).asStateFlow()
     val showDistanceEstimates: StateFlow<Boolean> = MutableStateFlow(true).asStateFlow()
     val showScanLine: StateFlow<Boolean> = MutableStateFlow(true).asStateFlow()

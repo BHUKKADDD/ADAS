@@ -43,7 +43,9 @@ fun AdasCameraScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    val inferenceEngine = remember { InferenceEngine(context) }
+    val inferenceEngine = remember {
+        InferenceEngine(context, viewModel.confidenceThreshold.value)
+    }
     val detections by viewModel.detections.collectAsState()
 
     var showSettings by remember { mutableStateOf(false) }
@@ -70,6 +72,8 @@ fun AdasCameraScreen(
             if (cameraProviderFuture.isDone) {
                 cameraProviderFuture.get().unbindAll()
             }
+            // Release the native TFLite interpreter (created here via remember).
+            inferenceEngine.close()
         }
     }
 

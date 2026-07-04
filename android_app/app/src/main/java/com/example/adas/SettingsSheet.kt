@@ -109,10 +109,10 @@ fun SettingsSheet(
             SettingsSectionHeader("MODEL & HARDWARE INFO")
             Spacer(modifier = Modifier.height(12.dp))
 
-            SettingsInfoRow("Active Neural Model",   "YOLOv8n-ADAS INT8")
+            SettingsInfoRow("Active Neural Model",   "YOLOv8n · IDD (float32)")
             SettingsInfoRow("Input Frame Resolution", "320 × 320 px")
             SettingsInfoRow("Inference Acceleration", "NNAPI / GPU Auto")
-            SettingsInfoRow("Classes Configured",     "vehicle, person, motorcycle, truck, bus")
+            SettingsInfoRow("Classes Configured",     "12 IDD (autorickshaw, rider, animal, …)")
 
             Spacer(modifier = Modifier.height(24.dp))
 

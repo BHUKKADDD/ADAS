@@ -87,20 +87,15 @@ private fun DrawScope.drawDetection(
 ) {
     val box   = detection.boundingBox
     val color = when (detection.label) {
-        // Danger — highest priority (pink/red)
-        "person"     -> colors.pink
-        "bicycle"    -> colors.pink
-        // Caution — vehicles (amber/yellow)
-        "motorcycle" -> colors.amber
-        "car"        -> colors.amber
+        // Vulnerable / unpredictable road users — highest priority (pink)
+        "person", "rider", "bicycle", "animal" -> colors.pink
+        // Smaller vehicles (amber)
+        "motorcycle", "car", "autorickshaw"    -> colors.amber
         // Large vehicles (cyan)
-        "truck"      -> colors.cyan
-        "bus"        -> colors.cyan
-        "train"      -> colors.cyan
-        // Other
-        "traffic light" -> colors.green
-        "stop sign"     -> colors.green
-        else            -> colors.textPrimary
+        "truck", "bus", "vehicle_fallback"     -> colors.cyan
+        // Informational (green)
+        "traffic_sign", "traffic_light"        -> colors.green
+        else                                   -> colors.textPrimary
     }
 
     val left   = box.left   * size.width

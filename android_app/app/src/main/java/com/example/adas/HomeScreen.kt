@@ -229,7 +229,7 @@ fun HomeScreen(
             )
 
             Text(
-                text      = "YOLOv8n  ·  TFLite INT8  ·  India Roads  ·  v1.0",
+                text      = "YOLOv8n  ·  IDD-trained  ·  India Roads  ·  v1.0",
                 fontFamily   = HudFontFamily,
                 fontSize     = 9.sp,
                 letterSpacing = 1.sp,
@@ -386,6 +386,15 @@ fun HomeScreen(
                 fontFamily   = HudFontFamily,
                 fontSize     = 9.sp,
                 color     = colors.hudDim.copy(alpha = 0.5f),
+                textAlign = TextAlign.Center
+            )
+            // IDD attribution — required by the India Driving Dataset research license
+            // (non-commercial). See DATASET_LICENSE.md.
+            Text(
+                text      = "Detection model trained on the India Driving Dataset (IDD)\nidd.insaan.iiit.ac.in · non-commercial research use",
+                fontFamily   = HudFontFamily,
+                fontSize     = 8.sp,
+                color     = colors.hudDim.copy(alpha = 0.4f),
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(16.dp))

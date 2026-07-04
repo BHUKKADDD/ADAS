@@ -476,7 +476,19 @@ ADAS/
 
 ## License
 
-MIT — See [LICENSE](LICENSE) for details.
+**Code:** MIT — see [LICENSE](LICENSE).
+
+**Training data & fine-tuned model:** The Phase 3 model is fine-tuned on the
+[India Driving Dataset (IDD)](https://idd.insaan.iiit.ac.in/), licensed for
+**non-commercial research use only**. The resulting `yolov8n.tflite` is a derivative
+of IDD and is therefore **non-commercial / research-use only — NOT covered by the MIT
+license above**. Cite IDD (Varma et al., WACV 2019) in any work that uses it, do not
+redistribute the dataset, and blur faces / license plates in any published sample
+images. Full terms and the code-vs-model split are in
+[DATASET_LICENSE.md](DATASET_LICENSE.md).
+
+> ⚠️ The commercial roadmap items (B2B SaaS, DePIN, insurance) **cannot** use the
+> IDD-trained model — retrain on commercially-licensed data first.
 
 ---
 

@@ -3,6 +3,7 @@ package com.example.adas
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.RectF
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.tensorflow.lite.Interpreter
@@ -16,36 +17,46 @@ import java.nio.channels.FileChannel
 /**
  * On-device YOLOv8n inference using TensorFlow Lite.
  *
- * Setup requirements:
- *  1. Export model: `yolo export model=yolov8n.pt format=tflite imgsz=320`
- *  2. Place `yolov8n.tflite` in app/src/main/assets/
- *  3. Place `coco_labels.txt` in app/src/main/assets/
+ * Model: YOLOv8n fine-tuned on the India Driving Dataset (IDD) — 12 classes
+ * (see `idd_labels.txt`). Regenerate via `training/train.py` + `export_model.py`.
  *
- * YOLOv8n TFLite output layout: [1, 84, 8400]
- *   - Rows 0–3    : cx, cy, w, h  (pixel coords relative to INPUT_SIZE)
- *   - Rows 4–83   : class scores  (already sigmoided by TFLite export)
- *   - Columns     : 8400 anchor predictions
+ * IDD YOLOv8n TFLite output layout: [1, 16, 2100]  (imgsz=320)
+ *   - Rows 0–3    : cx, cy, w, h  (already normalized to [0,1] by the export)
+ *   - Rows 4–15   : class scores  (12 classes; already sigmoided by the export)
+ *   - Columns     : 2100 anchor predictions
  */
-class InferenceEngine(private val context: Context) {
+class InferenceEngine(
+    private val context: Context,
+    // Minimum class score for a prediction to be kept. Sourced from the
+    // ViewModel's fixed preset so the app has a single confidence source of truth.
+    private val confidenceThreshold: Float = DEFAULT_CONFIDENCE_THRESHOLD
+) {
 
     companion object {
+        private const val TAG                  = "InferenceEngine"
         private const val MODEL_FILENAME       = "yolov8n.tflite"
-        private const val LABELS_FILENAME      = "coco_labels.txt"
+        private const val LABELS_FILENAME      = "idd_labels.txt"
         private const val INPUT_SIZE           = 320
-        private const val CONFIDENCE_THRESHOLD = 0.40f
+        const val DEFAULT_CONFIDENCE_THRESHOLD = 0.40f
         private const val IOU_THRESHOLD        = 0.45f
-        private const val NUM_CLASSES          = 80
+        private const val NUM_CLASSES          = 12
         // Anchors for imgsz=320: feature maps 40×40 + 20×20 + 10×10 = 2100
         // (Would be 8400 for imgsz=640: 80×80 + 40×40 + 20×20)
         private const val NUM_ANCHORS          = 2100
     }
 
-    // Lazy-loaded — model file is memory-mapped from assets on first use
-    private val interpreter: Interpreter by lazy {
+    // Lazy-loaded — model file is memory-mapped from assets on first use.
+    // Held via an explicit Lazy so close() can release it only if it was ever created.
+    private val interpreterLazy = lazy {
         val model   = loadModelFile(context, MODEL_FILENAME)
         val options = Interpreter.Options().apply { numThreads = 4 }
         Interpreter(model, options)
     }
+    private val interpreter: Interpreter by interpreterLazy
+
+    // Set once if the model/labels assets fail to load, so we don't spam logcat every frame.
+    @Volatile
+    private var loadErrorLogged = false
 
     /**
      * Loads a TFLite model from the app's assets folder as a [MappedByteBuffer].
@@ -59,7 +70,7 @@ class InferenceEngine(private val context: Context) {
         return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength)
     }
 
-    // 80 COCO class names loaded once from assets
+    // 12 IDD class names loaded once from assets (must match training/classes.txt order)
     private val labels: List<String> by lazy {
         context.assets.open(LABELS_FILENAME)
             .let { BufferedReader(InputStreamReader(it)) }
@@ -73,15 +84,38 @@ class InferenceEngine(private val context: Context) {
      * Returns normalized [Detection] objects (coords in [0,1]) for the overlay.
      */
     suspend fun detect(bitmap: Bitmap): List<Detection> = withContext(Dispatchers.Default) {
-        val inputBuffer = preprocessBitmap(bitmap)
+        try {
+            val inputBuffer = preprocessBitmap(bitmap)
 
-        // Output buffer: [1, 84, 8400]
-        val outputArray = Array(1) { Array(84) { FloatArray(NUM_ANCHORS) } }
+            // Output buffer: [1, 16, 2100]  (4 box coords + NUM_CLASSES scores)
+            val outputArray = Array(1) { Array(4 + NUM_CLASSES) { FloatArray(NUM_ANCHORS) } }
 
-        interpreter.run(inputBuffer, outputArray)
+            interpreter.run(inputBuffer, outputArray)
 
-        val rawDetections = parseOutput(outputArray[0], bitmap.width, bitmap.height)
-        applyNms(rawDetections)
+            val rawDetections = parseOutput(outputArray[0], bitmap.width, bitmap.height)
+            applyNms(rawDetections)
+        } catch (e: Exception) {
+            // Missing/corrupt "$MODEL_FILENAME" or "$LABELS_FILENAME" asset, or an
+            // interpreter failure. Degrade gracefully to "no detections" instead of
+            // crashing the camera pipeline; log the cause once.
+            if (!loadErrorLogged) {
+                Log.e(TAG, "Inference unavailable — check that $MODEL_FILENAME and " +
+                    "$LABELS_FILENAME exist in assets/ and are valid.", e)
+                loadErrorLogged = true
+            }
+            emptyList()
+        }
+    }
+
+    /**
+     * Releases the native TFLite interpreter. Safe to call multiple times and
+     * a no-op if the interpreter was never initialized. Must be called when the
+     * owning screen is torn down to avoid a native memory leak.
+     */
+    fun close() {
+        if (interpreterLazy.isInitialized()) {
+            interpreter.close()
+        }
     }
 
     // ── Pre-processing ────────────────────────────────────────────────────────
@@ -114,15 +148,14 @@ class InferenceEngine(private val context: Context) {
     // ── Output Parsing ────────────────────────────────────────────────────────
 
     /**
-     * Converts raw [1, 84, 8400] model output into [Detection] objects.
+     * Converts raw [1, 16, 2100] model output into [Detection] objects.
      *
      * YOLOv8 TFLite output is transposed compared to ONNX:
      *   output[feature_index][anchor_index]
-     *   - feature 0..3  → cx, cy, w, h (in INPUT_SIZE pixel space)
-     *   - feature 4..83 → class_0 .. class_79 confidence scores
+     *   - feature 0..3  → cx, cy, w, h (already normalized to [0,1])
+     *   - feature 4..15 → class_0 .. class_11 confidence scores (12 IDD classes)
      *
-     * Bounding boxes are converted to normalized [0,1] coords scaled to
-     * the original camera frame dimensions for the overlay.
+     * Boxes are emitted as normalized [0,1] coords for the overlay.
      */
     private fun parseOutput(
         output: Array<FloatArray>,
@@ -150,7 +183,7 @@ class InferenceEngine(private val context: Context) {
             }
 
             // Skip low-confidence predictions early
-            if (maxScore < CONFIDENCE_THRESHOLD) continue
+            if (maxScore < confidenceThreshold) continue
 
             // Convert center-format (cx, cy, w, h) to corner-format (left, top, right, bottom).
             // The YOLOv8 TFLite export already emits coordinates normalized to [0,1],
