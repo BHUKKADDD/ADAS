@@ -21,6 +21,8 @@ def export_yolov8_tflite(
     model_name: str = "yolov8n.pt",
     imgsz: int = 320,
     use_int8: bool = False,
+    data: str | None = None,
+    fraction: float = 1.0,
 ) -> Path:
     """
     Download and export YOLOv8n to TFLite format.
@@ -33,7 +35,13 @@ def export_yolov8_tflite(
         Input resolution. Must match INPUT_SIZE in InferenceEngine.kt (320).
     use_int8 : bool
         If True, produce an INT8 quantized model (faster on Android, ~4× smaller).
-        Requires a calibration dataset — set to False for a quick float32 export.
+        Requires a calibration dataset (`data`) — set to False for a quick float32 export.
+    data : str | None
+        Dataset YAML used to calibrate INT8 quantization (e.g. the training
+        data.yaml). Required when use_int8=True; ignored otherwise.
+    fraction : float
+        Fraction of the calibration set to use (INT8 only). A few hundred
+        images is enough — e.g. 0.05 of a 10k val set.
 
     Returns
     -------
@@ -54,7 +62,11 @@ def export_yolov8_tflite(
     print(f"[2/3] Exporting to TFLite  (imgsz={imgsz}, int8={use_int8}) ...")
     export_kwargs = dict(format="tflite", imgsz=imgsz)
     if use_int8:
+        if not data:
+            raise SystemExit("--int8 requires --data <data.yaml> for calibration.")
         export_kwargs["int8"] = True
+        export_kwargs["data"] = data
+        export_kwargs["fraction"] = fraction
 
     model.export(**export_kwargs)
 
@@ -103,11 +115,18 @@ if __name__ == "__main__":
                         help="Weights to export: 'yolov8n.pt' (stock) or a fine-tuned "
                              "runs/detect/<name>/weights/best.pt (Phase 3)")
     parser.add_argument("--int8",   action="store_true", help="Export INT8 quantized model (faster, smaller)")
+    parser.add_argument("--data",   default=None,
+                        help="Dataset YAML for INT8 calibration (required with --int8), "
+                             "e.g. ~/adas-data/idd_yolo/data.yaml")
+    parser.add_argument("--fraction", type=float, default=1.0,
+                        help="Fraction of the calibration set to use for INT8 (default: 1.0)")
     parser.add_argument("--imgsz",  type=int, default=320, help="Input image size (default: 320)")
     parser.add_argument("--no-copy", action="store_true", help="Skip auto-copy to assets/ folder")
     args = parser.parse_args()
 
-    tflite_file = export_yolov8_tflite(model_name=args.model, imgsz=args.imgsz, use_int8=args.int8)
+    tflite_file = export_yolov8_tflite(model_name=args.model, imgsz=args.imgsz,
+                                       use_int8=args.int8, data=args.data,
+                                       fraction=args.fraction)
 
     if not args.no_copy:
         copy_to_assets(tflite_file)

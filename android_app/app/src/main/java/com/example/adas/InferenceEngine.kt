@@ -39,7 +39,11 @@ class InferenceEngine(
         private const val MODEL_FILENAME       = "yolov8n.tflite"
         private const val LABELS_FILENAME      = "idd_labels.txt"
         private const val INPUT_SIZE           = 320
-        const val DEFAULT_CONFIDENCE_THRESHOLD = 0.40f
+        // Tuned for the INT8-quantized model: quantization compresses class
+        // scores (float32's ~0.9 detections score ~0.5 here), so the cutoff
+        // sits lower than the 0.40 used with the float32 export. Validated on
+        // an IDD val subset: 0.30 matches the float32@0.40 recall.
+        const val DEFAULT_CONFIDENCE_THRESHOLD = 0.30f
         private const val IOU_THRESHOLD        = 0.45f
         private const val NUM_CLASSES          = 12
         // Anchors for imgsz=320: feature maps 40×40 + 20×20 + 10×10 = 2100

@@ -418,7 +418,9 @@ val interpreter = Interpreter(model, options)
   - [x] YOLOv8n `.tflite` fine-tuned on the India Driving Dataset (IDD) — 12 India-
         specific classes; integrated and **verified on a Galaxy A55** (autorickshaw
         detected @ 92%, a class stock COCO cannot output)
-  - [ ] INT8 quantization + release build for speed (~5 → 20 FPS target)
+  - [x] INT8 quantization + release build for speed — 12–15 FPS on a Galaxy A55
+        (up from ~5 FPS debug/float32; 3.2 MB model, confidence threshold retuned
+        0.40 → 0.30 for quantized score compression)
   - [ ] OBD-II Bluetooth integration via ELM327 BLE adapter
   - [ ] GNSS geolocation tagging on each anomaly packet
   - [ ] Selective Wi-Fi / LTE upload to cloud ingestion API

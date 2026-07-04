@@ -19,6 +19,9 @@ android {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Signed with the debug keystore so `adb install` works for on-device
+            // perf testing. Replace with a real keystore before any distribution.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {

@@ -14,7 +14,7 @@ detected @ 92% — a class stock COCO can't output). All work is committed AND p
 **The model:** 12 classes in order — person, rider, car, truck, bus, motorcycle, bicycle,
 autorickshaw, animal, traffic_sign, traffic_light, vehicle_fallback (see
 `android_app/.../assets/idd_labels.txt`). Deployed at
-`android_app/app/src/main/assets/yolov8n.tflite` (11.6 MB float32). Trained weights:
+`android_app/app/src/main/assets/yolov8n.tflite` (3.2 MB INT8; float32 was 11.6 MB). Trained weights:
 `~/adas-data/runs/detect/idd_yolov8n/weights/best.pt` (WSL). Overall mAP50 0.284;
 autorickshaw 0.49, rider 0.36; weak: traffic_light 0.05, animal 0.08, vehicle_fallback 0.03.
 
@@ -63,7 +63,12 @@ Phase 4/5 commercial features against the v1 IDD model.
 
 ## What's left (nothing is blocking — thesis is done)
 
-1. INT8 re-export + release build for speed (~5 FPS debug -> 20 FPS target).
+1. ~~INT8 re-export + release build~~ DONE: INT8 model (calibrated on 5% of IDD val,
+   `--fraction`) + debug-signed release APK verified on the A55 at 12–15 FPS (was ~5).
+   INT8 compresses class scores (~0.9 float -> ~0.5), so DEFAULT_CONFIDENCE_THRESHOLD
+   is now 0.30 (subset val: matches float32@0.40 recall). mAP50 on the same 300-image
+   subset: 0.287 float32 -> 0.245 INT8. Remaining gap to 20 FPS is NOT inference
+   (5.5 ms on desktop CPU) — profile preprocess/camera pipeline next if needed.
 2. Real **outdoor** road test (only tested off a monitor so far).
 3. Improve weak classes (more epochs / higher res / class balance).
 4. (Optional) reconcile README <-> `ADAS plan.txt` phase-number mismatch (OBD/GNSS/PII/upload
