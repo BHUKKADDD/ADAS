@@ -2,6 +2,8 @@ package com.example.adas
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.RectF
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
@@ -43,7 +45,18 @@ class InferenceEngine(
         // Anchors for imgsz=320: feature maps 40×40 + 20×20 + 10×10 = 2100
         // (Would be 8400 for imgsz=640: 80×80 + 40×40 + 20×20)
         private const val NUM_ANCHORS          = 2100
+        // YOLO letterbox pad color (neutral gray)
+        private const val PAD_GRAY             = 114
     }
+
+    /** Letterbox transform applied to a frame, used to undo padding on outputs. */
+    private data class Letterbox(
+        val padX: Float,
+        val padY: Float,
+        val contentW: Float,   // scaled frame width inside the square (px)
+        val contentH: Float,   // scaled frame height inside the square (px)
+        val size: Int          // square side (= INPUT_SIZE)
+    )
 
     // Lazy-loaded — model file is memory-mapped from assets on first use.
     // Held via an explicit Lazy so close() can release it only if it was ever created.
@@ -85,14 +98,14 @@ class InferenceEngine(
      */
     suspend fun detect(bitmap: Bitmap): List<Detection> = withContext(Dispatchers.Default) {
         try {
-            val inputBuffer = preprocessBitmap(bitmap)
+            val (inputBuffer, letterbox) = preprocessBitmap(bitmap)
 
             // Output buffer: [1, 16, 2100]  (4 box coords + NUM_CLASSES scores)
             val outputArray = Array(1) { Array(4 + NUM_CLASSES) { FloatArray(NUM_ANCHORS) } }
 
             interpreter.run(inputBuffer, outputArray)
 
-            val rawDetections = parseOutput(outputArray[0], bitmap.width, bitmap.height)
+            val rawDetections = parseOutput(outputArray[0], letterbox)
             applyNms(rawDetections)
         } catch (e: Exception) {
             // Missing/corrupt "$MODEL_FILENAME" or "$LABELS_FILENAME" asset, or an
@@ -121,28 +134,44 @@ class InferenceEngine(
     // ── Pre-processing ────────────────────────────────────────────────────────
 
     /**
-     * Resize bitmap to INPUT_SIZE × INPUT_SIZE and pack into a float32 ByteBuffer.
-     * Pixel values normalized to [0, 1] in RGB channel order.
+     * Letterbox [bitmap] into an INPUT_SIZE×INPUT_SIZE square preserving aspect
+     * ratio (neutral-gray padding), matching how YOLO was trained — a naive
+     * anisotropic stretch distorts objects and tanks detection. Packs the result
+     * into a float32 ByteBuffer in RGB order, pixels normalized to [0,1].
+     *
+     * Returns the buffer plus the [Letterbox] transform needed to undo padding.
      */
-    private fun preprocessBitmap(bitmap: Bitmap): ByteBuffer {
-        val scaled = Bitmap.createScaledBitmap(bitmap, INPUT_SIZE, INPUT_SIZE, true)
+    private fun preprocessBitmap(bitmap: Bitmap): Pair<ByteBuffer, Letterbox> {
+        val s = INPUT_SIZE
+        val scale = minOf(s.toFloat() / bitmap.width, s.toFloat() / bitmap.height)
+        val contentW = Math.round(bitmap.width * scale)
+        val contentH = Math.round(bitmap.height * scale)
+        val padX = (s - contentW) / 2f
+        val padY = (s - contentH) / 2f
 
-        // Float32: 4 bytes × 3 channels × INPUT_SIZE²
+        val square = Bitmap.createBitmap(s, s, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(square)
+        canvas.drawColor(Color.rgb(PAD_GRAY, PAD_GRAY, PAD_GRAY))
+        val scaled = Bitmap.createScaledBitmap(bitmap, contentW, contentH, true)
+        canvas.drawBitmap(scaled, padX, padY, null)
+
+        // Float32: 4 bytes × 3 channels × s²
         val buffer = ByteBuffer
-            .allocateDirect(4 * 3 * INPUT_SIZE * INPUT_SIZE)
+            .allocateDirect(4 * 3 * s * s)
             .order(ByteOrder.nativeOrder())
 
-        val pixels = IntArray(INPUT_SIZE * INPUT_SIZE)
-        scaled.getPixels(pixels, 0, INPUT_SIZE, 0, 0, INPUT_SIZE, INPUT_SIZE)
+        val pixels = IntArray(s * s)
+        square.getPixels(pixels, 0, s, 0, 0, s, s)
 
-        for (pixel in pixels) {
-            buffer.putFloat(((pixel shr 16) and 0xFF) / 255.0f) // R
-            buffer.putFloat(((pixel shr  8) and 0xFF) / 255.0f) // G
-            buffer.putFloat(( pixel         and 0xFF) / 255.0f) // B
-        }
+        // Model input is NCHW [1,3,320,320] → channel-PLANAR order: all R values,
+        // then all G, then all B. Writing interleaved R,G,B,R,G,B… (NHWC) scrambles
+        // the channels and the model outputs near-zero scores for everything.
+        for (pixel in pixels) buffer.putFloat(((pixel shr 16) and 0xFF) / 255.0f) // R plane
+        for (pixel in pixels) buffer.putFloat(((pixel shr  8) and 0xFF) / 255.0f) // G plane
+        for (pixel in pixels) buffer.putFloat(( pixel         and 0xFF) / 255.0f) // B plane
 
         buffer.rewind()
-        return buffer
+        return buffer to Letterbox(padX, padY, contentW.toFloat(), contentH.toFloat(), s)
     }
 
     // ── Output Parsing ────────────────────────────────────────────────────────
@@ -159,10 +188,13 @@ class InferenceEngine(
      */
     private fun parseOutput(
         output: Array<FloatArray>,
-        origW: Int,
-        origH: Int
+        lb: Letterbox
     ): List<Detection> {
         val results = mutableListOf<Detection>()
+
+        // Undo letterbox: square-normalized coord → original-frame-normalized coord
+        fun unpadX(nx: Float) = ((nx * lb.size) - lb.padX) / lb.contentW
+        fun unpadY(ny: Float) = ((ny * lb.size) - lb.padY) / lb.contentH
 
         for (i in 0 until NUM_ANCHORS) {
             // Center-format box, already normalized to [0,1] by the TFLite export
@@ -185,14 +217,13 @@ class InferenceEngine(
             // Skip low-confidence predictions early
             if (maxScore < confidenceThreshold) continue
 
-            // Convert center-format (cx, cy, w, h) to corner-format (left, top, right, bottom).
-            // The YOLOv8 TFLite export already emits coordinates normalized to [0,1],
-            // so they are used directly — dividing by INPUT_SIZE here would collapse
-            // every box into the top-left corner.
-            val left   = cx - bw / 2f
-            val top    = cy - bh / 2f
-            val right  = cx + bw / 2f
-            val bottom = cy + bh / 2f
+            // Center→corner in square-normalized space, then un-letterbox back to
+            // original-frame-normalized space. (Never divide by INPUT_SIZE — the
+            // export already emits [0,1] coords of the padded square.)
+            val left   = unpadX(cx - bw / 2f)
+            val top    = unpadY(cy - bh / 2f)
+            val right  = unpadX(cx + bw / 2f)
+            val bottom = unpadY(cy + bh / 2f)
 
             val box = RectF(
                 left.coerceIn(0f, 1f),

@@ -13,6 +13,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -42,6 +43,7 @@ fun DetectionOverlay(
     val textMeasurer = rememberTextMeasurer()
     val showDistance by viewModel.showDistanceEstimates.collectAsState()
     val showScanLine by viewModel.showScanLine.collectAsState()
+    val frameAspect by viewModel.frameAspect.collectAsState()
 
     val infiniteTransition = rememberInfiniteTransition(label = "scan")
     val scanlineY by infiniteTransition.animateFloat(
@@ -72,15 +74,35 @@ fun DetectionOverlay(
             )
         }
 
+        // ── Compute the FIT_CENTER content rect for the camera frame ───────────
+        // Falls back to the full view if the frame aspect isn't known yet.
+        val content: Rect = if (frameAspect <= 0f) {
+            Rect(0f, 0f, size.width, size.height)
+        } else {
+            val viewAspect = size.width / size.height
+            if (frameAspect > viewAspect) {
+                // Frame wider than view → letterbox top/bottom
+                val ch = size.width / frameAspect
+                val oy = (size.height - ch) / 2f
+                Rect(0f, oy, size.width, oy + ch)
+            } else {
+                // Frame taller than view → pillarbox left/right
+                val cw = size.height * frameAspect
+                val ox = (size.width - cw) / 2f
+                Rect(ox, 0f, ox + cw, size.height)
+            }
+        }
+
         // ── Detections ─────────────────────────────────────────────────────────
         detections.forEach { detection ->
-            drawDetection(detection, textMeasurer, showDistance, colors)
+            drawDetection(detection, content, textMeasurer, showDistance, colors)
         }
     }
 }
 
 private fun DrawScope.drawDetection(
     detection: Detection,
+    content: Rect,
     textMeasurer: TextMeasurer,
     showDistance: Boolean,
     colors: AdasColors
@@ -98,10 +120,11 @@ private fun DrawScope.drawDetection(
         else                                   -> colors.textPrimary
     }
 
-    val left   = box.left   * size.width
-    val top    = box.top    * size.height
-    val right  = box.right  * size.width
-    val bottom = box.bottom * size.height
+    // Map normalized [0,1] coords into the letterboxed content rect
+    val left   = content.left + box.left   * content.width
+    val top    = content.top  + box.top    * content.height
+    val right  = content.left + box.right  * content.width
+    val bottom = content.top  + box.bottom * content.height
     val w = right - left
     val h = bottom - top
 
@@ -139,7 +162,7 @@ private fun DrawScope.drawDetection(
 
     // ── Distance estimate (mock: inversely proportional to box height) ────────
     val distanceText = if (showDistance) {
-        val boxFraction = (bottom - top) / size.height
+        val boxFraction = (bottom - top) / content.height
         val estimatedMeters = ((1f / boxFraction) * 5f).coerceIn(2f, 60f)
         "~${estimatedMeters.toInt()}m"
     } else null

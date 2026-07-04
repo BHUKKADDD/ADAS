@@ -25,6 +25,15 @@ class AdasViewModel : ViewModel() {
     private val _detections = MutableStateFlow<List<Detection>>(emptyList())
     val detections: StateFlow<List<Detection>> = _detections.asStateFlow()
 
+    // Aspect ratio (width/height) of the upright camera frame; 0 = unknown.
+    // Lets the overlay map boxes into the FIT_CENTER letterbox rect.
+    private val _frameAspect = MutableStateFlow(0f)
+    val frameAspect: StateFlow<Float> = _frameAspect.asStateFlow()
+
+    fun updateFrameAspect(ratio: Float) {
+        _frameAspect.value = ratio
+    }
+
     fun updateDetections(results: List<Detection>) {
         viewModelScope.launch {
             _detections.value = results
@@ -116,7 +125,9 @@ class AdasViewModel : ViewModel() {
     // Professional Presets (Fixed for driver safety, cannot be adjusted)
     // confidenceThreshold is the single source of truth for detection filtering:
     // its value is passed into InferenceEngine when the camera screen is created.
-    val confidenceThreshold: StateFlow<Float> = MutableStateFlow(0.45f).asStateFlow()
+    // With correct NCHW input, true detections score ~0.9, so 0.40 keeps them while
+    // cutting weak background clutter. Lower to ~0.30 for max sensitivity.
+    val confidenceThreshold: StateFlow<Float> = MutableStateFlow(0.40f).asStateFlow()
     val showDistanceEstimates: StateFlow<Boolean> = MutableStateFlow(true).asStateFlow()
     val showScanLine: StateFlow<Boolean> = MutableStateFlow(true).asStateFlow()
     val hudOpacity: StateFlow<Float> = MutableStateFlow(0.85f).asStateFlow()

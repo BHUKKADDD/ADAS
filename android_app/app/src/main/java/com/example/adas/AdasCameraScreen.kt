@@ -53,15 +53,21 @@ fun AdasCameraScreen(
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     val analysisExecutor = remember { Executors.newSingleThreadExecutor() }
     val analyzer = remember(inferenceEngine) {
-        FrameAnalyzer(inferenceEngine) { results ->
-            viewModel.updateDetections(results)
-            viewModel.onFrameProcessed()
-        }
+        FrameAnalyzer(
+            engine = inferenceEngine,
+            onResults = { results ->
+                viewModel.updateDetections(results)
+                viewModel.onFrameProcessed()
+            },
+            onFrameAspect = { aspect -> viewModel.updateFrameAspect(aspect) }
+        )
     }
 
     val previewView = remember {
         PreviewView(context).apply {
-            scaleType = PreviewView.ScaleType.FILL_CENTER
+            // FIT_CENTER: show the whole frame (letterboxed) so the overlay's
+            // coordinate space matches what's on screen and boxes line up.
+            scaleType = PreviewView.ScaleType.FIT_CENTER
         }
     }
 
