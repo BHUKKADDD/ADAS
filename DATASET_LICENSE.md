@@ -29,9 +29,10 @@ this project and on anything trained from it.
   **non-commercial, research-use only** — it is **NOT** covered by the repo's MIT
   license. Distributing the *model* is permitted (it's an abstract representation);
   distributing the *data* is not.
-- ⚠️ **The commercial roadmap items (B2B SaaS, DePIN tokenomics, insurance API) are
-  incompatible with an IDD-trained model.** To commercialize, retrain on data you
-  hold commercial rights to, and swap that model in.
+- ⚠️ **The commercial roadmap (B2B SaaS, DePIN, insurance API — README Phases 4–5)
+  cannot use this v1 IDD model.** Those phases are gated on a **"v2" model trained from
+  scratch on commercially-licensed or self-collected data** — see the "Commercial
+  firewall" in the README roadmap. This model is **v1: research/non-commercial only.**
 
 ### Preferred citation (verify the exact form on the IDD website)
 > G. Varma, A. Subramanian, A. Namboodiri, M. Chandraker, C. V. Jawahar.

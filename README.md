@@ -414,20 +414,36 @@ val interpreter = Interpreter(model, options)
   - [x] Runtime camera permission gating
   - [x] Debug APK built and ready to install
 
-- [ ] **Phase 3 — Real Model Integration**
-  - [ ] Plug in YOLOv8n INT8 `.tflite` model trained on Indian road data
+- [ ] **Phase 3 — Real Model Integration (v1 · IDD)** *(model live on-device)*
+  - [x] YOLOv8n `.tflite` fine-tuned on the India Driving Dataset (IDD) — 12 India-
+        specific classes; integrated and **verified on a Galaxy A55** (autorickshaw
+        detected @ 92%, a class stock COCO cannot output)
+  - [ ] INT8 quantization + release build for speed (~5 → 20 FPS target)
   - [ ] OBD-II Bluetooth integration via ELM327 BLE adapter
   - [ ] GNSS geolocation tagging on each anomaly packet
   - [ ] Selective Wi-Fi / LTE upload to cloud ingestion API
   - [ ] On-device PII blurring (face + license plate, MediaPipe)
 
-- [ ] **Phase 4 — Cloud Platform**
+---
+
+> ### ⚠️ Commercial firewall — v1 (research) → v2 (commercial)
+>
+> Everything above runs on the **v1 model, fine-tuned on the India Driving Dataset
+> (IDD)**, licensed for **non-commercial research use only** (see
+> [DATASET_LICENSE.md](DATASET_LICENSE.md)). **Every phase below is commercial and so
+> cannot use the v1 model.** Phases 4–5 are gated on a **"v2" model trained from scratch
+> on commercially-licensed or self-collected data** — acquiring that data is the first
+> task of Phase 4, before any monetized feature ships.
+
+- [ ] **Phase 4 — Cloud Platform** *(requires v2 model)*
+  - [ ] **Acquire a commercial-use dataset** (self-collected dashcam capture + labeling,
+        or a commercially-licensed set) and train the **v2 model** to replace IDD
   - [ ] Data lake ingestion pipeline (AWS S3 / GCS)
   - [ ] 3D scene graph annotation pipeline
   - [ ] VLM fine-tuning infrastructure (LoRA + Projection MLP)
   - [ ] B2B SaaS dashboard for OEM customers
 
-- [ ] **Phase 5 — Consumer & Scale**
+- [ ] **Phase 5 — Consumer & Scale** *(requires v2 model)*
   - [ ] DePIN tokenomics (data contribution rewards)
   - [ ] Usage-based insurance API integration
   - [ ] Driver drowsiness detection (face landmark model)
