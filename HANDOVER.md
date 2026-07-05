@@ -56,6 +56,15 @@ is walled off as **v2**, which requires a model trained on commercially-licensed
 data. See `DATASET_LICENSE.md` and the "Commercial firewall" in the README roadmap. Don't build
 Phase 4/5 commercial features against the v1 IDD model.
 
+**Go-to-market (decided 2026-07-06):** sell the **pipeline + methodology + expertise**, NOT the
+IDD model — a partner brings their own data and trains a v2 model they own outright, so the IDD
+license is never triggered. TWO hard rules: (1) train v2 from **stock `yolov8n.pt`**, never the IDD
+`best.pt` (else it's an IDD derivative); (2) **Ultralytics YOLOv8 is AGPL-3.0** — commercial use
+needs an Ultralytics Enterprise License or a permissive-detector swap. The Ultralytics dependency is
+isolated to `train.py`/`export_model.py` (data conversion + label format are framework-agnostic), so
+the swap is small; the app's `parseOutput` assumes a YOLOv8-shaped output, so stay in the YOLO family
+to keep the Android side unchanged.
+
 ## Training pipeline (`training/`)
 
 `idd_to_yolo.py` (IDD VOC -> YOLO), `train.py` (fine-tune), `export_model.py` (-> TFLite, root),
@@ -73,8 +82,10 @@ Phase 4/5 commercial features against the v1 IDD model.
 3. Improve weak classes (more epochs / higher res / class balance).
 4. (Optional) reconcile README <-> `ADAS plan.txt` phase-number mismatch (OBD/GNSS/PII/upload
    live under Phase 3 in README but Phase 4 in the plan).
-5. **v2 track (commercial):** data-acquisition strategy, then Phase 4 (OBD-II/ELM327, GNSS,
-   on-device PII blur, selective upload) and Phase 5 (cloud temporal scorer). All gated on v2 data.
+5. **v2 track (commercial):** go-to-market decided = license the pipeline; partner supplies data
+   and trains a v2 model they own (see "License firewall" above — stock weights only, Ultralytics
+   AGPL gate). Then Phase 4 (OBD-II/ELM327, GNSS, on-device PII blur, selective upload) and Phase 5
+   (cloud temporal scorer). All gated on v2 data.
 
 **Note:** tooling auto-commits and pushes directly to `main`. If you want a PR-based flow,
 branch off `main` for new work.

@@ -387,6 +387,12 @@ val interpreter = Interpreter(model, options)
 | Export | Ultralytics YOLOv8 Nano → TFLite (`export_model.py`) |
 | Verification | `check_tflite_scale.py` (TFLite output sanity check) |
 
+> **License note:** Ultralytics YOLOv8 is **AGPL-3.0**. Fine for this project's
+> non-commercial v1; any commercial v2 needs an Ultralytics Enterprise License or a
+> permissively-licensed detector. The Ultralytics dependency is isolated to `train.py` and
+> `export_model.py` (the data-conversion step and YOLO label format are framework-agnostic),
+> so the swap is a small, contained change — see the [Commercial firewall](#roadmap).
+
 ---
 
 ## Roadmap
@@ -433,13 +439,29 @@ val interpreter = Interpreter(model, options)
 > Everything above runs on the **v1 model, fine-tuned on the India Driving Dataset
 > (IDD)**, licensed for **non-commercial research use only** (see
 > [DATASET_LICENSE.md](DATASET_LICENSE.md)). **Every phase below is commercial and so
-> cannot use the v1 model.** Phases 4–5 are gated on a **"v2" model trained from scratch
-> on commercially-licensed or self-collected data** — acquiring that data is the first
-> task of Phase 4, before any monetized feature ships.
+> cannot use the v1 model.**
+>
+> **Go-to-market — license the pipeline, not the model.** The commercial offering is the
+> **method + pipeline + engineering know-how**, not the IDD-trained weights. A partner
+> (OEM / fleet / insurer) brings their **own** road data; the pipeline
+> ([`idd_to_yolo.py`](training/idd_to_yolo.py) → [`train.py`](training/train.py) →
+> [`export_model.py`](export_model.py)) trains a **v2 model on that data**, which is
+> cleanly theirs to commercialize. The IDD dataset and the v1 `.tflite` never change
+> hands, so the non-commercial license is never triggered.
+>
+> Two hard rules for any commercial v2 build:
+> 1. **Train from stock `yolov8n.pt`, never from the IDD `best.pt`** — fine-tuning off the
+>    IDD checkpoint would make the result an IDD derivative and drag the non-commercial
+>    license back in.
+> 2. **Ultralytics YOLOv8 is AGPL-3.0.** Commercial use needs an
+>    [Ultralytics Enterprise License](https://www.ultralytics.com/license) (the partner's to
+>    procure) **or** a swap to a permissively-licensed detector. The pipeline isolates
+>    Ultralytics to two thin scripts, so the swap is a small, contained change.
 
 - [ ] **Phase 4 — Cloud Platform** *(requires v2 model)*
-  - [ ] **Acquire a commercial-use dataset** (self-collected dashcam capture + labeling,
-        or a commercially-licensed set) and train the **v2 model** to replace IDD
+  - [ ] **Source commercial-use data & train v2** — either license the pipeline to a
+        partner who supplies their own road data, or self-collect / commercially-license a
+        dataset; train the **v2 model** (from stock weights) to replace IDD
   - [ ] Data lake ingestion pipeline (AWS S3 / GCS)
   - [ ] 3D scene graph annotation pipeline
   - [ ] VLM fine-tuning infrastructure (LoRA + Projection MLP)
@@ -505,8 +527,11 @@ redistribute the dataset, and blur faces / license plates in any published sampl
 images. Full terms and the code-vs-model split are in
 [DATASET_LICENSE.md](DATASET_LICENSE.md).
 
-> ⚠️ The commercial roadmap items (B2B SaaS, DePIN, insurance) **cannot** use the
-> IDD-trained model — retrain on commercially-licensed data first.
+> ⚠️ **Commercialization:** the commercial roadmap (B2B SaaS, DePIN, insurance) **cannot**
+> use the IDD-trained model. The intended path is to **license the pipeline** to a partner
+> who trains a **v2 model on their own data** (from stock weights, not the IDD checkpoint).
+> Note that **Ultralytics YOLOv8 is AGPL-3.0** — commercial use requires an Ultralytics
+> Enterprise License or a permissive-detector swap. See the [Commercial firewall](#roadmap).
 
 ---
 

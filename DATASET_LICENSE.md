@@ -34,6 +34,34 @@ this project and on anything trained from it.
   scratch on commercially-licensed or self-collected data** — see the "Commercial
   firewall" in the README roadmap. This model is **v1: research/non-commercial only.**
 
+### Commercialization path (how to sell without breaching the IDD license)
+The commercial offering is the **pipeline + methodology + engineering expertise**, not the
+IDD model. A partner supplies their **own** road-scene data; our pipeline
+(`training/idd_to_yolo.py` → `training/train.py` → `export_model.py`) trains a **v2 model**
+on it that the partner owns outright. Because neither the IDD dataset nor the IDD-trained
+`.tflite` is transferred, the IDD license is never triggered. Two rules keep it clean:
+1. **Train v2 from stock `yolov8n.pt`, never from the IDD `best.pt`** — otherwise the v2
+   model inherits the IDD-derivative (non-commercial) status.
+2. See the third-party license note below — the *training framework* has its own commercial
+   terms, independent of IDD.
+
+## Third-party: Ultralytics YOLOv8 (AGPL-3.0)
+
+The training/export pipeline depends on **Ultralytics YOLOv8**, licensed **AGPL-3.0**. This
+is separate from — and, for commercialization, more restrictive than — the IDD license:
+
+- **Non-commercial v1 (this repo):** AGPL-3.0 obligations are satisfied (code is public;
+  nothing is distributed commercially).
+- **Commercial v2:** AGPL-3.0 requires either open-sourcing the whole product **or** an
+  **[Ultralytics Enterprise License](https://www.ultralytics.com/license)**. A commercial
+  partner should procure that license, **or** the pipeline can be swapped to a
+  permissively-licensed detector (Apache / BSD / MIT). The Ultralytics dependency is
+  isolated to `training/train.py` and `export_model.py`; the data-conversion step
+  (`training/idd_to_yolo.py`) and the YOLO label format are framework-agnostic and
+  unaffected, so the swap is a small, contained change. Note the app's `parseOutput`
+  assumes a YOLOv8-shaped output tensor, so staying within the YOLO family keeps the
+  Android side unchanged.
+
 ### Preferred citation (verify the exact form on the IDD website)
 > G. Varma, A. Subramanian, A. Namboodiri, M. Chandraker, C. V. Jawahar.
 > "IDD: A Dataset for Exploring Problems of Autonomous Navigation in Unconstrained
