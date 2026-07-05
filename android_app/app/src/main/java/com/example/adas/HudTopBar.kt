@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.adas.obd.ObdConnectionState
 import com.example.adas.theme.AdasTheme
 import com.example.adas.theme.HudFontFamily
 
@@ -49,6 +50,8 @@ fun HudTopBar(
     val fps by viewModel.fps.collectAsState()
     val objectCount by viewModel.objectCount.collectAsState()
     val uploadStatus by viewModel.uploadStatus.collectAsState()
+    val speedKmh by viewModel.speedKmh.collectAsState()
+    val obdState by viewModel.obdConnectionState.collectAsState()
 
     val infiniteTransition = rememberInfiniteTransition(label = "livePulse")
     val liveAlpha by infiniteTransition.animateFloat(
@@ -73,11 +76,11 @@ fun HudTopBar(
                 .height(44.dp)
                 .clip(RoundedCornerShape(10.dp))
                 .background(colors.glass)
-                .padding(horizontal = 14.dp),
+                .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // ── Left: Live status ──────────────────────────────────────────────
+            // ── Left: Back + live status ───────────────────────────────────────
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // Back Button
                 Box(
@@ -96,8 +99,8 @@ fun HudTopBar(
                         letterSpacing = 1.sp
                     )
                 }
-                Spacer(modifier = Modifier.width(10.dp))
-                // Pulsing green dot
+                Spacer(modifier = Modifier.width(8.dp))
+                // Pulsing green dot — the "live" indicator
                 Box(
                     modifier = Modifier
                         .size(8.dp)
@@ -113,28 +116,29 @@ fun HudTopBar(
                     letterSpacing = 1.5.sp,
                     color = colors.cyan
                 )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "LIVE",
-                    fontFamily = HudFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 11.sp,
-                    letterSpacing = 1.5.sp,
-                    color = colors.green
+            }
+
+            // ── Center: live metrics (FPS · OBJ · speed) ──────────────────────
+            // Grouped with fixed internal spacing so labels never collide even
+            // when the outer SpaceBetween compresses the gaps between clusters.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                HudMetric(label = "FPS", value = fps.toString())
+                HudMetric(
+                    label = "OBJ",
+                    value = objectCount.toString(),
+                    valueColor = if (objectCount > 0) colors.cyan else colors.hudDim
+                )
+                HudMetric(
+                    label = "KM/H",
+                    value = speedKmh?.toString() ?: "--",
+                    valueColor = if (speedKmh != null) colors.amber else colors.hudDim
                 )
             }
 
-            // ── Center-left: FPS ──────────────────────────────────────────────
-            HudMetric(label = "FPS", value = fps.toString())
-
-            // ── Center: Object count ──────────────────────────────────────────
-            HudMetric(
-                label = "OBJ",
-                value = objectCount.toString(),
-                valueColor = if (objectCount > 0) colors.cyan else colors.hudDim
-            )
-
-            // ── Center-right: Upload status ───────────────────────────────────
+            // ── Right: upload + OBD connection indicators ─────────────────────
             val uploadLabel = when (uploadStatus) {
                 AdasViewModel.UploadStatus.UPLOADING -> "↑ SYNC"
                 AdasViewModel.UploadStatus.SUCCESS   -> "✓ SYNC"
@@ -147,30 +151,50 @@ fun HudTopBar(
                 AdasViewModel.UploadStatus.FAILED    -> colors.offline
                 else                                 -> colors.hudDim
             }
-            Text(
-                text = uploadLabel,
-                fontFamily = HudFontFamily,
-                fontWeight = FontWeight.Medium,
-                fontSize = 10.sp,
-                letterSpacing = 1.sp,
-                color = uploadColor
-            )
-
-            // ── Right: Connection dot ─────────────────────────────────────────
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(7.dp)
-                        .clip(CircleShape)
-                        .background(colors.green)
-                )
-                Spacer(modifier = Modifier.width(5.dp))
-                Text(
-                    text = "WiFi",
-                    fontFamily = HudFontFamily,
-                    fontSize = 10.sp,
-                    color = colors.hudText
-                )
+            val obdColor = when (obdState) {
+                ObdConnectionState.CONNECTED    -> colors.green
+                ObdConnectionState.SCANNING,
+                ObdConnectionState.CONNECTING,
+                ObdConnectionState.INITIALIZING -> colors.amber
+                ObdConnectionState.ERROR        -> colors.offline
+                ObdConnectionState.DISCONNECTED -> colors.hudDim
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Upload label only while a sync is in flight; when idle the
+                // bottom-bar UPLOAD button already conveys state, and hiding it
+                // keeps the bar to one line.
+                if (uploadStatus != AdasViewModel.UploadStatus.IDLE) {
+                    Text(
+                        text = uploadLabel,
+                        fontFamily = HudFontFamily,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 10.sp,
+                        letterSpacing = 1.sp,
+                        color = uploadColor,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(obdColor)
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        text = "OBD",
+                        fontFamily = HudFontFamily,
+                        fontSize = 10.sp,
+                        color = colors.hudText,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
             }
         }
     }

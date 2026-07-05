@@ -1,13 +1,19 @@
 package com.example.adas
 
+import android.app.Application
 import android.graphics.RectF
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.adas.obd.ObdBleManager
+import com.example.adas.obd.ObdConnectionState
+import com.example.adas.obd.SimulatedTelemetrySource
+import com.example.adas.obd.TelemetrySource
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,7 +24,7 @@ import kotlinx.coroutines.launch
  * Holds live detection results, HUD metrics, alert state, and UI toggles.
  * All composables read from this ViewModel to avoid state duplication.
  */
-class AdasViewModel : ViewModel() {
+class AdasViewModel(app: Application) : AndroidViewModel(app) {
 
     // ── Detection Results ─────────────────────────────────────────────────────
 
@@ -83,14 +89,21 @@ class AdasViewModel : ViewModel() {
         val danger  = detections.firstOrNull { it.label in dangerLabels  && isCenterZone(it.boundingBox) }
         val caution = detections.firstOrNull { it.label in cautionLabels && isCenterZone(it.boundingBox) }
 
+        // Speed-aware: annotate alerts with the live OBD speed when available, and
+        // suppress alerts entirely when the vehicle is confirmed stationary (real
+        // OBD speed == 0) — parked/stopped means no phantom "BRAKE!" prompt.
+        val speed = _speedKmh.value
+        val speedSuffix = if (speed != null) "  ·  $speed km/h" else ""
+        val stationary = speed == 0
+
         _alertState.value = when {
-            danger  != null -> AlertState(
+            danger  != null && !stationary -> AlertState(
                 AlertLevel.DANGER,
-                "⚠️  ${danger.label.uppercase()} DETECTED — BRAKE!"
+                "⚠️  ${danger.label.uppercase()} DETECTED — BRAKE!$speedSuffix"
             )
-            caution != null -> AlertState(
+            caution != null && !stationary -> AlertState(
                 AlertLevel.CAUTION,
-                "⚠️  ${caution.label.uppercase()} IN LANE — SLOW DOWN"
+                "⚠️  ${caution.label.uppercase()} IN LANE — SLOW DOWN$speedSuffix"
             )
             else -> AlertState(AlertLevel.NONE, "")
         }
@@ -110,6 +123,71 @@ class AdasViewModel : ViewModel() {
 
     fun toggleRecording() {
         _isRecording.value = !_isRecording.value
+    }
+
+    // ── OBD Telemetry (vehicle speed via ELM327) ──────────────────────────────
+    // Model-agnostic infrastructure: none of this touches the detector or the IDD
+    // model. A TelemetrySource (real BLE or simulated) feeds live vehicle data to
+    // the HUD. The ViewModel owns stable flows and mirrors whichever source is
+    // active, so the UI is unaffected when the source is swapped.
+
+    private val _obdState = MutableStateFlow(ObdConnectionState.DISCONNECTED)
+    val obdConnectionState: StateFlow<ObdConnectionState> = _obdState.asStateFlow()
+
+    private val _speedKmh = MutableStateFlow<Int?>(null)
+    val speedKmh: StateFlow<Int?> = _speedKmh.asStateFlow()
+
+    private val _obdError = MutableStateFlow<String?>(null)
+    val obdError: StateFlow<String?> = _obdError.asStateFlow()
+
+    private val _isObdSimulated = MutableStateFlow(false)
+    val isObdSimulated: StateFlow<Boolean> = _isObdSimulated.asStateFlow()
+
+    private var telemetrySource: TelemetrySource? = null
+    private var telemetryJob: Job? = null
+
+    /** Connect to a real ELM327 BLE adapter. Caller must already hold BT permissions. */
+    fun connectObd() {
+        _isObdSimulated.value = false
+        activateSource(ObdBleManager(getApplication()))
+    }
+
+    /** Toggle the bench simulator (synthetic speed curve, no hardware). */
+    fun setObdSimulated(enabled: Boolean) {
+        if (enabled) {
+            _isObdSimulated.value = true
+            activateSource(SimulatedTelemetrySource())
+        } else {
+            disconnectObd()
+        }
+    }
+
+    /** Stop any active source and reset telemetry to disconnected. */
+    fun disconnectObd() {
+        telemetryJob?.cancel()
+        telemetryJob = null
+        telemetrySource?.stop()
+        telemetrySource = null
+        _isObdSimulated.value = false
+        _obdState.value = ObdConnectionState.DISCONNECTED
+        _speedKmh.value = null
+    }
+
+    private fun activateSource(source: TelemetrySource) {
+        telemetryJob?.cancel()
+        telemetrySource?.stop()
+        telemetrySource = source
+        telemetryJob = viewModelScope.launch {
+            launch { source.connectionState.collect { _obdState.value = it } }
+            launch { source.telemetry.collect { _speedKmh.value = it.speedKmh } }
+            launch { source.lastError.collect { _obdError.value = it } }
+        }
+        source.start()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        telemetrySource?.stop()
     }
 
     // ── Settings ──────────────────────────────────────────────────────────────
