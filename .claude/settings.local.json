@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"/c/Program Files/Eclipse Adoptium/jdk-17.0.19.10-hotspot/bin/java\" 2>/dev/null && echo \"EXISTS\" || echo \"NOT FOUND\")",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\\\\Android\" -ErrorAction SilentlyContinue | Select-Object Name; Get-ChildItem \"$env:LOCALAPPDATA\\\\Programs\\\\Android\" -ErrorAction SilentlyContinue | Select-Object Name)"
+    ]
+  }
+}

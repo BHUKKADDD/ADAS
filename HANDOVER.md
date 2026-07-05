@@ -35,8 +35,17 @@ autorickshaw 0.49, rider 0.36; weak: traffic_light 0.05, animal 0.08, vehicle_fa
 
 ## Environment (all already set up)
 
+- **IDE — VS Code via Remote-WSL (recommended):** open the repo *inside* WSL so editing,
+  Gradle, and the training pipeline all run natively in Ubuntu (this sidesteps the broken
+  Windows-native Gradle / AF_UNIX build). From a WSL terminal:
+  `cd "/mnt/c/Users/MANISH KUMAR/Desktop/Engineering Projects and Learning/ADAS" && code .`
+  Confirm the bottom-left shows **`WSL: Ubuntu`** — if it shows a plain Windows path instead,
+  you're back on broken Windows Gradle. Install the Claude Code / Kotlin / Python extensions
+  **in the WSL remote** (VS Code installs extensions per-remote; look for "Install in WSL").
+  Keep a **Windows** terminal alongside for the adb device loop (see Device below).
 - **Build:** `wsl.exe -d Ubuntu -- bash -s` with `JAVA_HOME=$HOME/jdk17`,
   `ANDROID_HOME=$HOME/Android/Sdk`, then `cd .../android_app && bash gradlew assembleDebug`.
+  (Inside VS Code Remote-WSL, just `cd android_app && ./gradlew assembleDebug` in the WSL terminal.)
 - **Training venv:** `~/adas-train` (WSL, torch `2.10.0+rocm7.2.4`, ultralytics, tensorflow),
   reuses the machine's system ROCm 7.2.4. Use: `source ~/adas-train/bin/activate && source training/env.sh`
   (env.sh sets `HSA_OVERRIDE_GFX_VERSION=11.0.0` + `HSA_ENABLE_DXG_DETECTION=1` for the RX 7700 XT).
