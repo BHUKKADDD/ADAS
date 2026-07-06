@@ -1,5 +1,6 @@
 package com.example.adas
 
+import android.graphics.RectF
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -44,6 +45,7 @@ fun DetectionOverlay(
     val showDistance by viewModel.showDistanceEstimates.collectAsState()
     val showScanLine by viewModel.showScanLine.collectAsState()
     val frameAspect by viewModel.frameAspect.collectAsState()
+    val faceBoxes by viewModel.faceBoxes.collectAsState()
 
     val infiniteTransition = rememberInfiniteTransition(label = "scan")
     val scanlineY by infiniteTransition.animateFloat(
@@ -97,7 +99,69 @@ fun DetectionOverlay(
         detections.forEach { detection ->
             drawDetection(detection, content, textMeasurer, showDistance, colors)
         }
+
+        // ── PII face redaction (on-device) ─────────────────────────────────────
+        // Drawn last so the opaque cover sits on top of everything — a detected
+        // face never reaches the screen in the clear.
+        faceBoxes.forEach { box ->
+            drawFaceRedaction(box, content, textMeasurer)
+        }
     }
+}
+
+/** Cover a detected face with an opaque, pixelated redaction box + "PII" tag. */
+private fun DrawScope.drawFaceRedaction(
+    box: RectF,
+    content: Rect,
+    textMeasurer: TextMeasurer
+) {
+    val left   = content.left + box.left   * content.width
+    val top    = content.top  + box.top    * content.height
+    val right  = content.left + box.right  * content.width
+    val bottom = content.top  + box.bottom * content.height
+    val w = right - left
+    val h = bottom - top
+    if (w <= 0f || h <= 0f) return
+
+    // Opaque base so nothing shows through.
+    drawRect(color = Color.Black.copy(alpha = 0.92f), topLeft = Offset(left, top), size = Size(w, h))
+
+    // Mosaic/pixelation hint.
+    val cell = (minOf(w, h) / 6f).coerceAtLeast(6f)
+    var y = top; var row = 0
+    while (y < bottom) {
+        var x = left; var col = 0
+        while (x < right) {
+            val a = if ((row + col) % 2 == 0) 0.10f else 0.22f
+            drawRect(
+                color = Color.White.copy(alpha = a),
+                topLeft = Offset(x, y),
+                size = Size(minOf(cell, right - x), minOf(cell, bottom - y))
+            )
+            x += cell; col++
+        }
+        y += cell; row++
+    }
+
+    // Border + tag.
+    drawRect(
+        color = Color.White.copy(alpha = 0.5f),
+        topLeft = Offset(left, top),
+        size = Size(w, h),
+        style = Stroke(width = 1.5.dp.toPx())
+    )
+    val style = TextStyle(
+        color = Color.White,
+        fontSize = 8.sp,
+        fontWeight = FontWeight.Bold,
+        fontFamily = FontFamily.Monospace
+    )
+    drawText(
+        textMeasurer = textMeasurer,
+        text = "PII",
+        style = style,
+        topLeft = Offset(left + 3.dp.toPx(), top + 3.dp.toPx())
+    )
 }
 
 private fun DrawScope.drawDetection(

@@ -2,8 +2,10 @@ package com.example.adas
 
 import android.graphics.Bitmap
 import android.graphics.Matrix
+import android.graphics.RectF
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import com.example.adas.privacy.FaceBlurrer
 import java.io.Closeable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,7 +34,9 @@ import kotlinx.coroutines.withContext
 class FrameAnalyzer(
     private val engine: InferenceEngine,
     private val onResults: (List<Detection>) -> Unit,
-    private val onFrameAspect: (Float) -> Unit = {}
+    private val onFrameAspect: (Float) -> Unit = {},
+    private val onFaces: (List<RectF>) -> Unit = {},
+    private val enableFaceBlur: Boolean = true
 ) : ImageAnalysis.Analyzer, Closeable {
 
     // A supervised scope so one failed frame doesn't cancel the entire pipeline
@@ -42,6 +46,11 @@ class FrameAnalyzer(
 
     // Report aspect ratio only when it changes (avoids spamming state updates)
     private var lastReportedAspect: Float = 0f
+
+    // On-device PII face redaction (runs on the same upright frame as inference,
+    // every other frame to spare the CPU budget).
+    private val faceBlurrer = FaceBlurrer()
+    private var frameCount = 0L
 
     override fun analyze(image: ImageProxy) {
         if (pendingJob?.isActive == true) {
@@ -73,10 +82,13 @@ class FrameAnalyzer(
                 lastReportedAspect = aspect
                 onFrameAspect(aspect)
             }
+            val doFaces = enableFaceBlur && (frameCount++ % 2 == 0L)
             pendingJob = analyzerScope.launch {
                 val results = engine.detect(bitmap)
+                val faces = if (doFaces) faceBlurrer.detect(bitmap) else null
                 withContext(Dispatchers.Main) {
                     onResults(results)
+                    if (faces != null) onFaces(faces)
                 }
             }
         }

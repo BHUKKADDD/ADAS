@@ -2,6 +2,7 @@ package com.example.adas
 
 import android.app.Application
 import android.graphics.RectF
+import android.os.Build
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -9,10 +10,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.adas.geo.GeoLocation
+import com.example.adas.geo.GnssLocationProvider
 import com.example.adas.obd.ObdBleManager
 import com.example.adas.obd.ObdConnectionState
 import com.example.adas.obd.SimulatedTelemetrySource
 import com.example.adas.obd.TelemetrySource
+import com.example.adas.upload.AnomalyPacket
+import com.example.adas.upload.DetectionSummary
+import com.example.adas.upload.UploadClient
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -185,9 +191,51 @@ class AdasViewModel(app: Application) : AndroidViewModel(app) {
         source.start()
     }
 
+    // ── GNSS geolocation (position + speed fallback) ──────────────────────────
+    // Model-agnostic infra. Provides a live location fix for anomaly tagging, and
+    // — since a GPS fix carries speed-over-ground — feeds the HUD speed when no OBD
+    // adapter is connected (real speed with zero extra hardware).
+
+    private val gnss by lazy { GnssLocationProvider(getApplication()) }
+    private var gnssJob: Job? = null
+
+    private val _location = MutableStateFlow<GeoLocation?>(null)
+    val location: StateFlow<GeoLocation?> = _location.asStateFlow()
+
+    /** Start GNSS updates. Caller must already hold a location permission. */
+    fun startGnss() {
+        if (gnssJob != null) return
+        gnss.start()
+        gnssJob = viewModelScope.launch {
+            gnss.location.collect { fix ->
+                _location.value = fix
+                // GPS speed drives the HUD only when no OBD/sim source is active.
+                if (telemetrySource == null) _speedKmh.value = fix?.speedKmh
+            }
+        }
+    }
+
+    fun stopGnss() {
+        gnssJob?.cancel()
+        gnssJob = null
+        gnss.stop()
+        if (telemetrySource == null) _speedKmh.value = null
+    }
+
+    // ── PII redaction (on-device face blur) ───────────────────────────────────
+    // Normalized face rects the overlay covers so faces never render in the clear.
+
+    private val _faceBoxes = MutableStateFlow<List<RectF>>(emptyList())
+    val faceBoxes: StateFlow<List<RectF>> = _faceBoxes.asStateFlow()
+
+    fun updateFaceBoxes(boxes: List<RectF>) {
+        _faceBoxes.value = boxes
+    }
+
     override fun onCleared() {
         super.onCleared()
         telemetrySource?.stop()
+        stopGnss()
     }
 
     // ── Settings ──────────────────────────────────────────────────────────────
@@ -217,23 +265,39 @@ class AdasViewModel(app: Application) : AndroidViewModel(app) {
     private val _uploadStatus = MutableStateFlow(UploadStatus.IDLE)
     val uploadStatus: StateFlow<UploadStatus> = _uploadStatus.asStateFlow()
 
+    private val uploadClient by lazy { UploadClient(getApplication()) }
+
+    // Ingestion endpoint. For on-device testing this points at a local mock server
+    // bridged to the phone via `adb reverse tcp:8000 tcp:8000`. Swap for the real
+    // cloud URL later (that side is Phase 4 / commercial).
+    val uploadEndpoint: String = "http://localhost:8000/ingest"
+
+    /**
+     * Build an anomaly packet from the latest detections + telemetry and POST it,
+     * subject to the selective-upload policy (Wi-Fi only). Metadata only for now.
+     */
     fun triggerUpload() {
         viewModelScope.launch {
             _uploadStatus.value = UploadStatus.UPLOADING
             try {
-                // TODO Phase D: serialize latest clip frames to .npz and POST to
-                // cloud_scorer endpoint via OkHttp or Ktor:
-                //
-                //   val client = OkHttpClient()
-                //   val body = RequestBody.create(MediaType.parse("application/octet-stream"), clipFile)
-                //   val request = Request.Builder()
-                //       .url("https://your-cloud-server/score")
-                //       .post(body).build()
-                //   val response = client.newCall(request).execute()
-                //   if (!response.isSuccessful) throw IOException("Upload failed: ${response.code}")
-                //
-                kotlinx.coroutines.delay(1500) // Remove once real upload is implemented
-                _uploadStatus.value = UploadStatus.SUCCESS
+                if (!uploadClient.canUpload()) {
+                    _uploadStatus.value = UploadStatus.FAILED   // no Wi-Fi → held back
+                } else {
+                    val fix = _location.value
+                    val packet = AnomalyPacket(
+                        timestampMs = System.currentTimeMillis(),
+                        deviceModel = Build.MODEL,
+                        speedKmh    = _speedKmh.value,
+                        latitude    = fix?.latitude,
+                        longitude   = fix?.longitude,
+                        accuracyM   = fix?.accuracyM,
+                        detections  = _detections.value.map {
+                            DetectionSummary(it.label, it.confidence)
+                        }
+                    )
+                    val ok = uploadClient.upload(packet, uploadEndpoint)
+                    _uploadStatus.value = if (ok) UploadStatus.SUCCESS else UploadStatus.FAILED
+                }
             } catch (e: Exception) {
                 _uploadStatus.value = UploadStatus.FAILED
             } finally {
