@@ -1,103 +1,91 @@
 # ADAS — Session Handover
 
 Pick up the **ADAS** project: an on-device AI dashcam for Indian roads. The product is
-the Android app in `android_app/`; the phone is the edge node (no cloud). Repo root:
-`C:\Users\MANISH KUMAR\Desktop\Engineering Projects and Learning\ADAS`.
+the Android app in `android_app/` (Kotlin + Compose + TFLite); the phone is the edge node
+(no cloud dependency). New: `cloud/` holds the Phase-4 model-agnostic server scaffolds.
+Repo root (WSL): `/mnt/c/Users/MANISH KUMAR/Desktop/Engineering Projects and Learning/ADAS`.
 
-## Current state — Phase 3 COMPLETE
+## Current state (2026-07-06)
 
-YOLOv8n fine-tuned on the **India Driving Dataset (IDD)**, 12 classes, exported to TFLite,
-integrated into the app, and **verified live on a Samsung Galaxy A55** (autorickshaw
-detected @ 92% — a class stock COCO can't output). All work is committed AND pushed to
-`origin/main` (github.com/sushant-mishra-dtu/ADAS, HEAD `38f8a87`). Working tree clean.
+**Phase 3 — every item now has a working, on-device-verified slice:**
+
+| Item | Status |
+| --- | --- |
+| YOLOv8n/IDD 12-class model, INT8 3.2 MB, 12–15 FPS on Galaxy A55 | ✅ done (verified off a monitor only — outdoor road test still open) |
+| OBD-II ELM327 **BLE** telemetry (`obd/` package) | 🟡 speed-first slice (PID 010D) verified via built-in **simulator** toggle in Settings; real-adapter test pending (no hardware) |
+| GNSS geotagging (`geo/`) | ✅ verified live (HUD readout + tags packets; also HUD speed fallback via GPS speed-over-ground) |
+| Selective upload (`upload/`) | ✅ verified live: JSON `AnomalyPacket` → Wi-Fi-gated POST → HTTP 200 (metadata-only; no clip bytes yet — REC is still a stub) |
+| PII blur (`privacy/`) | 🟡 face-only, framework `FaceDetector`, redacts the **live overlay**; verified live (opaque PII box on a real face). Plate blur + MediaPipe + stored-frame scrubbing open |
 
 **The model:** 12 classes in order — person, rider, car, truck, bus, motorcycle, bicycle,
-autorickshaw, animal, traffic_sign, traffic_light, vehicle_fallback (see
-`android_app/.../assets/idd_labels.txt`). Deployed at
-`android_app/app/src/main/assets/yolov8n.tflite` (3.2 MB INT8; float32 was 11.6 MB). Trained weights:
-`~/adas-data/runs/detect/idd_yolov8n/weights/best.pt` (WSL). Overall mAP50 0.284;
+autorickshaw, animal, traffic_sign, traffic_light, vehicle_fallback
+(`android_app/.../assets/idd_labels.txt`). Deployed at
+`android_app/app/src/main/assets/yolov8n.tflite` (3.2 MB INT8). Trained weights:
+`~/adas-data/runs/detect/idd_yolov8n/weights/best.pt` (WSL). mAP50 0.284 overall;
 autorickshaw 0.49, rider 0.36; weak: traffic_light 0.05, animal 0.08, vehicle_fallback 0.03.
+Confidence threshold 0.30 (INT8 compresses scores).
 
-## CRITICAL gotchas (these will bite a fresh session)
+**Phase 4 (model-agnostic infra only — see firewall):**
 
-- **NCHW planar input:** the TFLite input is `[1,3,320,320]` = channel-planar. `preprocessBitmap`
-  writes all R, then all G, then all B — NOT interleaved. (Interleaved -> scrambled input ->
-  near-zero scores -> detects nothing.) If you ever re-export the model, re-verify input layout.
-- **Output `[1,16,2100]` is already normalized [0,1]** — NEVER divide by INPUT_SIZE in `parseOutput`.
-- **FrameAnalyzer rotates** the frame by `imageInfo.rotationDegrees` before inference (portrait
-  frames reach the model sideways otherwise). Preprocessing **letterboxes** (aspect-preserving)
-  and un-letterboxes output; preview is **FIT_CENTER**; overlay maps boxes via `AdasViewModel.frameAspect`.
-- **Build only in WSL** (Windows AF_UNIX is broken -> Gradle fails). Install via Windows adb.
-- **Long WSL jobs:** launch via the Bash tool's `run_in_background`, NOT `nohup &` (WSL reaps
-  disowned processes when the launching `wsl.exe` exits).
-- **WSL var gotcha:** drive WSL with `wsl.exe -d Ubuntu -- bash -s <<'EOF' ... EOF` heredoc;
-  `bash -lc '...'` swallows `$VARS` (they come through empty).
+- `cloud/ingestion/server.py` — stdlib-only ingestion service: POST `/ingest`, GET `/anomalies`,
+  `/health`, dark-HUD dashboard at `/` (SQLite + JSONL lake in `cloud/ingestion/data/`,
+  gitignored). **Verified end-to-end live**: phone UPLOAD → adb reverse → service → row stored.
 
-## Environment (all already set up)
+**Architecture pattern (reuse it):** `TelemetrySource` interface (obd/) with real + simulated
+impls behind ViewModel-owned StateFlows; all capability packages (`obd/`, `geo/`, `upload/`,
+`privacy/`) are **decoupled from `InferenceEngine`** = model-agnostic = firewall-safe.
 
-- **IDE — VS Code via Remote-WSL (recommended):** open the repo *inside* WSL so editing,
-  Gradle, and the training pipeline all run natively in Ubuntu (this sidesteps the broken
-  Windows-native Gradle / AF_UNIX build). From a WSL terminal:
-  `cd "/mnt/c/Users/MANISH KUMAR/Desktop/Engineering Projects and Learning/ADAS" && code .`
-  Confirm the bottom-left shows **`WSL: Ubuntu`** — if it shows a plain Windows path instead,
-  you're back on broken Windows Gradle. Install the Claude Code / Kotlin / Python extensions
-  **in the WSL remote** (VS Code installs extensions per-remote; look for "Install in WSL").
-  Keep a **Windows** terminal alongside for the adb device loop (see Device below).
-- **Build:** `wsl.exe -d Ubuntu -- bash -s` with `JAVA_HOME=$HOME/jdk17`,
-  `ANDROID_HOME=$HOME/Android/Sdk`, then `cd .../android_app && bash gradlew assembleDebug`.
-  (Inside VS Code Remote-WSL, just `cd android_app && ./gradlew assembleDebug` in the WSL terminal.)
-- **Training venv:** `~/adas-train` (WSL, torch `2.10.0+rocm7.2.4`, ultralytics, tensorflow),
-  reuses the machine's system ROCm 7.2.4. Use: `source ~/adas-train/bin/activate && source training/env.sh`
-  (env.sh sets `HSA_OVERRIDE_GFX_VERSION=11.0.0` + `HSA_ENABLE_DXG_DETECTION=1` for the RX 7700 XT).
-- **Dataset:** `~/adas-data/IDD_Detection` (raw) + `~/adas-data/idd_yolo` (converted). OUTSIDE the
-  repo, gitignored. IDD is non-commercial — never commit/redistribute it.
-- **Device:** A55 (SM-A556E) over **wireless adb** (USB is flaky — Samsung reverts to charging
-  each replug). Windows adb: `C:\Users\MANISH KUMAR\AppData\Local\Android\Sdk\platform-tools\adb.exe`.
-  Pair via **stdin**: `printf 'CODE\n' | adb pair 192.168.x.x:PORT` (inline-code form throws a
-  protocol fault). Verify detections via `adb -s <ip:port> logcat -s InferenceEngine:D` and
-  `adb exec-out screencap -p > shot.png`. (`gh` CLI is NOT installed.)
+## Git / commit state — READ THIS
 
-## License firewall (a decided constraint)
+- `origin/main` = local `main` = `6a37ec5` at last check. **An auto-commit-AND-PUSH tool runs
+  on this machine**: it committed+pushed `d6ada55` (OBD feature) and `6a37ec5` (HANDOVER +
+  `.claude/settings.local.json`) without being asked. Assume anything in the working tree may
+  get swept to GitHub. Branch first if you don't want that.
+- **Uncommitted right now:** the 3 Phase-3 features (geo/upload/privacy + VM/overlay/analyzer/
+  manifest edits), `cloud/ingestion/`, this file, and any newer Phase-4 scaffolds.
+- Git identity set repo-locally to BHUKKADDD (matches history). `gh` CLI not installed.
 
-IDD is **non-commercial research use only**. The shipped model is **v1 = research-only, NOT MIT**
-(code is MIT; model isn't). The commercial roadmap (B2B SaaS, DePIN, insurance — README Phases 4–5)
-is walled off as **v2**, which requires a model trained on commercially-licensed/self-collected
-data. See `DATASET_LICENSE.md` and the "Commercial firewall" in the README roadmap. Don't build
-Phase 4/5 commercial features against the v1 IDD model.
+## CRITICAL gotchas
 
-**Go-to-market (decided 2026-07-06):** sell the **pipeline + methodology + expertise**, NOT the
-IDD model — a partner brings their own data and trains a v2 model they own outright, so the IDD
-license is never triggered. TWO hard rules: (1) train v2 from **stock `yolov8n.pt`**, never the IDD
-`best.pt` (else it's an IDD derivative); (2) **Ultralytics YOLOv8 is AGPL-3.0** — commercial use
-needs an Ultralytics Enterprise License or a permissive-detector swap. The Ultralytics dependency is
-isolated to `train.py`/`export_model.py` (data conversion + label format are framework-agnostic), so
-the swap is small; the app's `parseOutput` assumes a YOLOv8-shaped output, so stay in the YOLO family
-to keep the Android side unchanged.
+- **NCHW planar input:** TFLite input `[1,3,320,320]` — `preprocessBitmap` writes all R, all G,
+  all B (interleaved = scrambled = zero detections). Output `[1,16,2100]` is **already
+  normalized [0,1]** — never divide by INPUT_SIZE. FrameAnalyzer rotates frames upright;
+  letterbox in / un-letterbox out; preview FIT_CENTER; overlay maps via `frameAspect`.
+- **Build only in WSL** (`JAVA_HOME=$HOME/jdk17`, `ANDROID_HOME=$HOME/Android/Sdk`,
+  `cd android_app && ./gradlew assembleDebug`). Windows Gradle is broken (AF_UNIX).
+- **adb runs on Windows**, callable from WSL:
+  `"/mnt/c/Users/MANISH KUMAR/AppData/Local/Android/Sdk/platform-tools/adb.exe"`.
+  Wireless A55 (SM-A556E): if `adb devices` is empty, `adb.exe kill-server` then
+  `adb.exe mdns services` — auto-reconnects in seconds (pairing persists). Phone screen sleep
+  drops the connection; `input keyevent KEYCODE_WAKEUP` + swipe-up unlocks.
+- **Stale adb reverse:** device port **8000 is permanently stuck** from a dead adb server
+  (survives transport drops; only a device reboot clears it). For device upload tests:
+  `adb reverse tcp:8137 tcp:8000` and temporarily point `AdasViewModel.uploadEndpoint` at
+  `:8137` (source is back at `:8000`; the currently-installed APK still uses `:8137`).
+- **Long WSL jobs:** Bash tool `run_in_background`, not `nohup &`.
 
-## Training pipeline (`training/`)
+## License firewall (decided, non-negotiable)
 
-`idd_to_yolo.py` (IDD VOC -> YOLO), `train.py` (fine-tune), `export_model.py` (-> TFLite, root),
-`check_tflite_scale.py` (verify, root), `training/README.md` (full workflow).
+v1 model = IDD = **non-commercial research only**. Phase 4/5 = commercial = **v2 model required**.
+Go-to-market: **license the pipeline, not the model** (partner brings data, owns their v2).
+Hard rules: (1) v2 trains from **stock `yolov8n.pt`**, never IDD `best.pt`; (2) Ultralytics is
+**AGPL-3.0** → Enterprise License or permissive-detector swap for commercial v2.
+Model-agnostic infra (OBD/GNSS/upload/PII/ingestion/dashboard/VLM-harness) is fine to build
+now — it never touches the model — but must not ship commercially bundled with the v1 IDD model.
 
-## What's left (nothing is blocking — thesis is done)
+## Environment
 
-1. ~~INT8 re-export + release build~~ DONE: INT8 model (calibrated on 5% of IDD val,
-   `--fraction`) + debug-signed release APK verified on the A55 at 12–15 FPS (was ~5).
-   INT8 compresses class scores (~0.9 float -> ~0.5), so DEFAULT_CONFIDENCE_THRESHOLD
-   is now 0.30 (subset val: matches float32@0.40 recall). mAP50 on the same 300-image
-   subset: 0.287 float32 -> 0.245 INT8. Remaining gap to 20 FPS is NOT inference
-   (5.5 ms on desktop CPU) — profile preprocess/camera pipeline next if needed.
-2. Real **outdoor** road test (only tested off a monitor so far).
-3. Improve weak classes (more epochs / higher res / class balance).
-4. (Optional) reconcile README <-> `ADAS plan.txt` phase-number mismatch (OBD/GNSS/PII/upload
-   live under Phase 3 in README but Phase 4 in the plan).
-5. **v2 track (commercial):** go-to-market decided = license the pipeline; partner supplies data
-   and trains a v2 model they own (see "License firewall" above — stock weights only, Ultralytics
-   AGPL gate). Then Phase 4 (OBD-II/ELM327, GNSS, on-device PII blur, selective upload) and Phase 5
-   (cloud temporal scorer). All gated on v2 data.
+- VS Code **Remote-WSL** (Ubuntu). Training venv `~/adas-train` (torch ROCm 7.2.4, RX 7700 XT;
+  `source training/env.sh` sets HSA overrides). Dataset `~/adas-data/` (outside repo, gitignored).
+- Ingestion service: `python3 cloud/ingestion/server.py` → dashboard at `http://localhost:8000`.
 
-**Note:** tooling auto-commits and pushes directly to `main`. If you want a PR-based flow,
-branch off `main` for new work.
+## Open threads (pick up any)
 
-First thing to do: say which thread to pick up (INT8/perf, outdoor test, model accuracy, or the
-v2 commercial-data plan).
+1. **Phase 4 build-out (current thread):** more model-agnostic infra — B2B-ify the ingestion
+   dashboard (auth/tenants/filters), VLM fine-tuning harness (LoRA + projection MLP scaffold),
+   3D scene-graph annotation scaffold, v2 training entry point with firewall guards baked in.
+2. **Commit the uncommitted work** (all verified; mind the auto-push tool).
+3. **Phase-3 depth gaps:** plate blur + MediaPipe swap + stored-frame redaction (needs REC
+   implemented first), extra OBD PIDs (010C RPM etc. — one-line additions), real ELM327 adapter
+   test, **outdoor road test** (biggest validation gap; device + logcat/screencap harness only).
+4. **v2 commercial track:** gated on partner/data — see firewall.
