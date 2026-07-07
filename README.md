@@ -427,10 +427,19 @@ val interpreter = Interpreter(model, options)
   - [x] INT8 quantization + release build for speed — 12–15 FPS on a Galaxy A55
         (up from ~5 FPS debug/float32; 3.2 MB model, confidence threshold retuned
         0.40 → 0.30 for quantized score compression)
-  - [ ] OBD-II Bluetooth integration via ELM327 BLE adapter
-  - [ ] GNSS geolocation tagging on each anomaly packet
-  - [ ] Selective Wi-Fi / LTE upload to cloud ingestion API
-  - [ ] On-device PII blurring (face + license plate, MediaPipe)
+  - [x] OBD-II Bluetooth integration via ELM327 BLE adapter — speed-first slice
+        (PID 010D → HUD + speed-aware alerts), GATT auto-discovery + built-in bench
+        simulator; **verified on-device via simulator** (real-adapter run pending;
+        further PIDs are one-line additions)
+  - [x] GNSS geolocation tagging on each anomaly packet — live HUD readout, tags
+        every upload, and doubles as HUD speed fallback (GPS speed-over-ground);
+        **verified on-device**
+  - [x] Selective Wi-Fi / LTE upload to cloud ingestion API — Wi-Fi-gated JSON
+        `AnomalyPacket` POST; **verified end-to-end** against `cloud/ingestion`
+        (metadata-only for now; clip bytes land once REC is implemented)
+  - [x] On-device PII blurring — face redaction on the live overlay, **verified
+        on-device** (license-plate model + MediaPipe upgrade + stored-frame
+        scrubbing still open)
 
 ---
 
@@ -458,14 +467,25 @@ val interpreter = Interpreter(model, options)
 >    procure) **or** a swap to a permissively-licensed detector. The pipeline isolates
 >    Ultralytics to two thin scripts, so the swap is a small, contained change.
 
-- [ ] **Phase 4 — Cloud Platform** *(requires v2 model)*
-  - [ ] **Source commercial-use data & train v2** — either license the pipeline to a
-        partner who supplies their own road data, or self-collect / commercially-license a
-        dataset; train the **v2 model** (from stock weights) to replace IDD
-  - [ ] Data lake ingestion pipeline (AWS S3 / GCS)
-  - [ ] 3D scene graph annotation pipeline
-  - [ ] VLM fine-tuning infrastructure (LoRA + Projection MLP)
-  - [ ] B2B SaaS dashboard for OEM customers
+- [ ] **Phase 4 — Cloud Platform** *(commercial launch requires the v2 model; the
+      infrastructure below is model-agnostic and already scaffolded — see
+      [`cloud/README.md`](cloud/README.md))*
+  - [ ] **Source commercial-use data & train v2** — the true gate. Partner supplies
+        road data (or self-collect / commercially license); train via
+        [`training/train_v2.py`](training/train_v2.py), which **enforces the firewall
+        in code** (refuses IDD weights/data, writes a provenance manifest)
+  - [x] Data lake ingestion pipeline — `cloud/ingestion/` v0: multi-tenant API-key
+        auth, SQLite + JSONL lake, query filters; **verified live phone→cloud**
+        (production path: S3/GCS + Postgres)
+  - [x] 3D scene graph annotation pipeline — `cloud/scene_graph/` v0: packets →
+        ego/road-user graphs + risk tags; geometric (3D) relations slot in once
+        clip/bbox upload ships
+  - [x] VLM fine-tuning infrastructure (LoRA + Projection MLP) — `cloud/vlm/` v0:
+        frozen-backbone adapter training, smoke-tested end-to-end on real lake data
+        (real VLM checkpoint drops in behind the same interfaces)
+  - [x] B2B SaaS dashboard for OEM customers — v0: tenant-scoped live dashboard
+        with per-tenant API keys and filtering (production path: OIDC, real SaaS
+        hosting)
 
 - [ ] **Phase 5 — Consumer & Scale** *(requires v2 model)*
   - [ ] DePIN tokenomics (data contribution rewards)

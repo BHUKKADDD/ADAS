@@ -86,11 +86,18 @@ class LoRALinear(nn.Module):
         return self.base(x) + self.scale * self.lora_b(self.lora_a(x))
 
 
-def inject_lora(module: nn.Module, r: int, alpha: int, targets=("q", "k", "v", "proj", "fc")):
+def inject_lora(module: nn.Module, r: int, alpha: int,
+                targets=("q", "k", "v", "proj", "fc", "linear")):
     """Recursively replace target nn.Linear layers with LoRALinear wrappers.
-    Returns the count of injected adapters."""
+    Returns the count of injected adapters.
+
+    Skips nn.MultiheadAttention subtrees: MHA reads `out_proj.weight` directly
+    (bypassing forward()), so a wrapper there breaks it. Real HF-style LLMs use
+    plain nn.Linear q/k/v/o projections, which inject fine."""
     count = 0
     for name, child in list(module.named_children()):
+        if isinstance(child, nn.MultiheadAttention):
+            continue
         if isinstance(child, nn.Linear) and any(t in name.lower() for t in targets):
             setattr(module, name, LoRALinear(child, r=r, alpha=alpha))
             count += 1

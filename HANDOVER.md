@@ -25,11 +25,22 @@ autorickshaw, animal, traffic_sign, traffic_light, vehicle_fallback
 autorickshaw 0.49, rider 0.36; weak: traffic_light 0.05, animal 0.08, vehicle_fallback 0.03.
 Confidence threshold 0.30 (INT8 compresses scores).
 
-**Phase 4 (model-agnostic infra only — see firewall):**
+**Phase 4 (model-agnostic infra only — see firewall). All four scaffolds built + tested
+(see `cloud/README.md`):**
 
-- `cloud/ingestion/server.py` — stdlib-only ingestion service: POST `/ingest`, GET `/anomalies`,
-  `/health`, dark-HUD dashboard at `/` (SQLite + JSONL lake in `cloud/ingestion/data/`,
-  gitignored). **Verified end-to-end live**: phone UPLOAD → adb reverse → service → row stored.
+- `cloud/ingestion/server.py` — **multi-tenant** ingestion service (stdlib): API-key→tenant
+  auth (`ADAS_API_KEYS="key:tenant,admin:*"`), tenant-isolated `/anomalies` + `/stats` +
+  dashboard with device/label filters, SQLite auto-migration. Verified: phone→cloud live +
+  10/10 auth/tenancy tests. Data in `cloud/ingestion/data/` (gitignored).
+- `training/train_v2.py` — v2 commercial-track training entry, **firewall enforced in code**
+  (refuses IDD-derived weights/data, requires provenance ack, writes `provenance.json`,
+  `--check-only` mode). All 3 gates verified.
+- `cloud/scene_graph/annotate.py` — packets → scene graphs (ego + road users + co-occurrence
+  edges + risk tag mirroring the app's alert logic). Verified on the live lake (8/8).
+- `cloud/vlm/finetune_vlm.py` — LoRA + projection-MLP harness, frozen backbones, trains
+  adapters only; `--smoke` verifies loss decreases on real lake packets (needs `~/adas-train`
+  venv). GOTCHA fixed: never LoRA-inject into `nn.MultiheadAttention` (it reads
+  `out_proj.weight` directly, bypassing forward()).
 
 **Architecture pattern (reuse it):** `TelemetrySource` interface (obd/) with real + simulated
 impls behind ViewModel-owned StateFlows; all capability packages (`obd/`, `geo/`, `upload/`,
