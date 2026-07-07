@@ -31,14 +31,21 @@ enum class ObdConnectionState {
 }
 
 /**
- * A snapshot of vehicle telemetry. Speed-first for now; new PIDs (RPM, coolant,
- * throttle, …) become additional nullable fields plus one line in the poller.
+ * A snapshot of vehicle telemetry. Each field is null until its PID has been
+ * read at least once; further PIDs become additional nullable fields plus one
+ * line in the poller.
  *
- * @param speedKmh   Vehicle speed from OBD-II PID 010D, or null if not yet read.
+ * @param speedKmh    Vehicle speed from OBD-II PID 010D, or null if not yet read.
+ * @param rpm         Engine RPM from PID 010C.
+ * @param coolantC    Engine coolant temperature (°C) from PID 0105.
+ * @param throttlePct Throttle position (0–100 %) from PID 0111.
  * @param updatedAtMs [System.currentTimeMillis] when this snapshot was produced.
  */
 data class VehicleTelemetry(
     val speedKmh: Int? = null,
+    val rpm: Int? = null,
+    val coolantC: Int? = null,
+    val throttlePct: Int? = null,
     val updatedAtMs: Long = 0L
 )
 

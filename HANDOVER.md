@@ -12,7 +12,7 @@ Repo root (WSL): `/mnt/c/Users/MANISH KUMAR/Desktop/Engineering Projects and Lea
 | Item | Status |
 | --- | --- |
 | YOLOv8n/IDD 12-class model, INT8 3.2 MB, 12–15 FPS on Galaxy A55 | ✅ done (verified off a monitor only — outdoor road test still open) |
-| OBD-II ELM327 **BLE** telemetry (`obd/` package) | 🟡 speed-first slice (PID 010D) verified via built-in **simulator** toggle in Settings; real-adapter test pending (no hardware) |
+| OBD-II ELM327 **BLE** telemetry (`obd/` package) | 🟡 multi-PID: speed 010D + RPM 010C + coolant 0105 + throttle 0111 (generic `parseMode01`, round-robin poller, sim emits all four, Settings "Engine" row, fields ride in `AnomalyPacket`→JSONL lake). 22/22 parser tests + build green (2026-07-07); **on-device sim re-check pending** (A55 unreachable), real-adapter test pending (no hardware) |
 | GNSS geotagging (`geo/`) | ✅ verified live (HUD readout + tags packets; also HUD speed fallback via GPS speed-over-ground) |
 | Selective upload (`upload/`) | ✅ verified live: JSON `AnomalyPacket` → Wi-Fi-gated POST → HTTP 200 (metadata-only; no clip bytes yet — REC is still a stub) |
 | PII blur (`privacy/`) | 🟡 face-only, framework `FaceDetector`, redacts the **live overlay**; verified live (opaque PII box on a real face). Plate blur + MediaPipe + stored-frame scrubbing open |
@@ -97,6 +97,8 @@ now — it never touches the model — but must not ship commercially bundled wi
    3D scene-graph annotation scaffold, v2 training entry point with firewall guards baked in.
 2. **Commit the uncommitted work** (all verified; mind the auto-push tool).
 3. **Phase-3 depth gaps:** plate blur + MediaPipe swap + stored-frame redaction (needs REC
-   implemented first), extra OBD PIDs (010C RPM etc. — one-line additions), real ELM327 adapter
-   test, **outdoor road test** (biggest validation gap; device + logcat/screencap harness only).
+   implemented first), real ELM327 adapter test, **outdoor road test** (biggest validation gap;
+   device + logcat/screencap harness only). Extra OBD PIDs done 2026-07-07 (RPM/coolant/throttle;
+   bench-verified only — flip the Settings sim toggle on the A55 to eyeball the new "Engine" row,
+   then install the fresh APK first: it reverted `uploadEndpoint` to `:8000`).
 4. **v2 commercial track:** gated on partner/data — see firewall.

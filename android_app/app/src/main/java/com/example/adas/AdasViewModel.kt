@@ -143,6 +143,15 @@ class AdasViewModel(app: Application) : AndroidViewModel(app) {
     private val _speedKmh = MutableStateFlow<Int?>(null)
     val speedKmh: StateFlow<Int?> = _speedKmh.asStateFlow()
 
+    private val _rpm = MutableStateFlow<Int?>(null)
+    val rpm: StateFlow<Int?> = _rpm.asStateFlow()
+
+    private val _coolantC = MutableStateFlow<Int?>(null)
+    val coolantC: StateFlow<Int?> = _coolantC.asStateFlow()
+
+    private val _throttlePct = MutableStateFlow<Int?>(null)
+    val throttlePct: StateFlow<Int?> = _throttlePct.asStateFlow()
+
     private val _obdError = MutableStateFlow<String?>(null)
     val obdError: StateFlow<String?> = _obdError.asStateFlow()
 
@@ -177,6 +186,9 @@ class AdasViewModel(app: Application) : AndroidViewModel(app) {
         _isObdSimulated.value = false
         _obdState.value = ObdConnectionState.DISCONNECTED
         _speedKmh.value = null
+        _rpm.value = null
+        _coolantC.value = null
+        _throttlePct.value = null
     }
 
     private fun activateSource(source: TelemetrySource) {
@@ -185,7 +197,14 @@ class AdasViewModel(app: Application) : AndroidViewModel(app) {
         telemetrySource = source
         telemetryJob = viewModelScope.launch {
             launch { source.connectionState.collect { _obdState.value = it } }
-            launch { source.telemetry.collect { _speedKmh.value = it.speedKmh } }
+            launch {
+                source.telemetry.collect {
+                    _speedKmh.value = it.speedKmh
+                    _rpm.value = it.rpm
+                    _coolantC.value = it.coolantC
+                    _throttlePct.value = it.throttlePct
+                }
+            }
             launch { source.lastError.collect { _obdError.value = it } }
         }
         source.start()
@@ -288,6 +307,9 @@ class AdasViewModel(app: Application) : AndroidViewModel(app) {
                         timestampMs = System.currentTimeMillis(),
                         deviceModel = Build.MODEL,
                         speedKmh    = _speedKmh.value,
+                        rpm         = _rpm.value,
+                        coolantC    = _coolantC.value,
+                        throttlePct = _throttlePct.value,
                         latitude    = fix?.latitude,
                         longitude   = fix?.longitude,
                         accuracyM   = fix?.accuracyM,

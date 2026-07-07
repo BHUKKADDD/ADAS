@@ -158,6 +158,9 @@ private fun ObdTelemetrySection(viewModel: AdasViewModel) {
     val colors = AdasTheme.colors
     val obdState by viewModel.obdConnectionState.collectAsState()
     val speedKmh by viewModel.speedKmh.collectAsState()
+    val rpm by viewModel.rpm.collectAsState()
+    val coolantC by viewModel.coolantC.collectAsState()
+    val throttlePct by viewModel.throttlePct.collectAsState()
     val obdError by viewModel.obdError.collectAsState()
     val isSimulated by viewModel.isObdSimulated.collectAsState()
 
@@ -226,6 +229,36 @@ private fun ObdTelemetrySection(viewModel: AdasViewModel) {
                 fontFamily = HudFontFamily,
                 fontSize = 10.sp,
                 color = colors.offline.copy(alpha = 0.85f)
+            )
+        }
+    }
+
+    // Secondary PIDs (RPM / coolant / throttle) — shown once each has been read.
+    val secondary = listOfNotNull(
+        rpm?.let { "$it rpm" },
+        coolantC?.let { "$it °C" },
+        throttlePct?.let { "$it% throttle" }
+    )
+    if (secondary.isNotEmpty()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Engine",
+                fontFamily = HudFontFamily,
+                fontSize = 12.sp,
+                color = colors.hudText,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = secondary.joinToString("  ·  "),
+                fontFamily = HudFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                color = colors.cyan
             )
         }
     }

@@ -54,8 +54,10 @@ class SimulatedTelemetrySource : TelemetrySource {
             var current = 0.0
             var index = 0
             var dwellTicks = 0
+            var coolant = COLD_COOLANT_C
             while (isActive) {
                 val target = targets[index].toDouble()
+                val accelerating = target > current + STEP_KMH
                 if (abs(current - target) <= STEP_KMH) {
                     current = target
                     if (dwellTicks++ >= DWELL_TICKS) {
@@ -65,8 +67,17 @@ class SimulatedTelemetrySource : TelemetrySource {
                 } else {
                     current += sign(target - current) * STEP_KMH
                 }
+                // Exponential warm-up toward operating temperature (~90 °C in ~1 min).
+                coolant += (WARM_COOLANT_C - coolant) * COOLANT_WARMUP_RATE
                 _telemetry.value = VehicleTelemetry(
                     speedKmh = current.roundToInt(),
+                    rpm = rpmFor(current),
+                    coolantC = coolant.roundToInt(),
+                    throttlePct = when {
+                        accelerating -> 35
+                        current > 0.5 -> 13 // cruise
+                        else -> 0
+                    },
                     updatedAtMs = System.currentTimeMillis()
                 )
                 delay(TICK_MS)
@@ -81,9 +92,21 @@ class SimulatedTelemetrySource : TelemetrySource {
         _connectionState.value = ObdConnectionState.DISCONNECTED
     }
 
+    /** Crude 5-speed gear ladder: each gear spans ~18 km/h and sweeps 1200→3000 rpm. */
+    private fun rpmFor(speedKmh: Double): Int {
+        if (speedKmh < 1) return IDLE_RPM
+        val inGear = speedKmh % GEAR_SPAN_KMH
+        return (1200 + inGear / GEAR_SPAN_KMH * 1800).roundToInt()
+    }
+
     private companion object {
         const val TICK_MS = 400L       // emit cadence
         const val STEP_KMH = 3.0       // ≈7.5 km/h per second ramp
         const val DWELL_TICKS = 5      // hold ~2 s on reaching a target
+        const val IDLE_RPM = 800
+        const val GEAR_SPAN_KMH = 18.0
+        const val COLD_COOLANT_C = 26.0
+        const val WARM_COOLANT_C = 90.0
+        const val COOLANT_WARMUP_RATE = 0.02 // per tick
     }
 }

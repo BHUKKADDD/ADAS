@@ -237,19 +237,41 @@ class ObdBleManager(context: Context) : TelemetrySource {
                 delay(120)
             }
 
+            // Speed is safety-relevant, so it is polled every tick; the slower
+            // secondary PIDs (RPM, coolant, throttle) round-robin one per tick.
+            val secondaries = listOf<Pair<String, (String) -> Unit>>(
+                PID_RPM to { raw ->
+                    parseRpm(raw)?.let { v -> updateTelemetry { it.copy(rpm = v) } }
+                },
+                PID_COOLANT to { raw ->
+                    parseCoolantC(raw)?.let { v -> updateTelemetry { it.copy(coolantC = v) } }
+                },
+                PID_THROTTLE to { raw ->
+                    parseThrottlePct(raw)?.let { v -> updateTelemetry { it.copy(throttlePct = v) } }
+                }
+            )
+            var nextSecondary = 0
             while (isActive) {
                 val speed = runCatching { sendCommand(PID_SPEED, CMD_TIMEOUT_MS) }
                     .getOrNull()
                     ?.let { parseSpeedKmh(it) }
                 if (speed != null) {
-                    _telemetry.value = VehicleTelemetry(speed, System.currentTimeMillis())
+                    updateTelemetry { it.copy(speedKmh = speed) }
                     if (_connectionState.value != ObdConnectionState.CONNECTED) {
                         _connectionState.value = ObdConnectionState.CONNECTED
                     }
                 }
+                val (cmd, handle) = secondaries[nextSecondary]
+                nextSecondary = (nextSecondary + 1) % secondaries.size
+                runCatching { sendCommand(cmd, CMD_TIMEOUT_MS) }.getOrNull()?.let(handle)
                 delay(POLL_INTERVAL_MS)
             }
         }
+    }
+
+    private fun updateTelemetry(transform: (VehicleTelemetry) -> VehicleTelemetry) {
+        _telemetry.value = transform(_telemetry.value)
+            .copy(updatedAtMs = System.currentTimeMillis())
     }
 
     private suspend fun sendCommand(cmd: String, timeoutMs: Long): String {
@@ -349,6 +371,9 @@ class ObdBleManager(context: Context) : TelemetrySource {
     private companion object {
         const val TAG = "ObdBleManager"
         const val PID_SPEED = "010D"
+        const val PID_RPM = "010C"
+        const val PID_COOLANT = "0105"
+        const val PID_THROTTLE = "0111"
         val INIT_COMMANDS = listOf("ATZ", "ATE0", "ATL0", "ATS0", "ATSP0")
         const val SCAN_TIMEOUT_MS = 12_000L
         const val DESCRIPTOR_TIMEOUT_MS = 3_000L
