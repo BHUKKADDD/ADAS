@@ -1,0 +1,492 @@
+{
+  ".claude/settings.local.json": {
+    "mtime": 1783290026.2895627,
+    "ast_hash": "e0051b98a3b63385388bfd940a966669",
+    "semantic_hash": ""
+  },
+  ".claude/workflows/find-bugs.js": {
+    "mtime": 1780732190.43197,
+    "ast_hash": "d48af5400f89439f5826f7e663c390b1",
+    "semantic_hash": ""
+  },
+  "__init__.py": {
+    "mtime": 1780648992.355887,
+    "ast_hash": "9161323be69aad52f3353db8db19a148",
+    "semantic_hash": ""
+  },
+  "android_app/app/build.gradle.kts": {
+    "mtime": 1785905744.6709993,
+    "ast_hash": "8a191f48ea924f42335d37741d60daee",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/androidTest/java/com/example/adas/ui/main/MainScreenTest.kt": {
+    "mtime": 1780739593.0303822,
+    "ast_hash": "6e93d037dc259c4ef85a57b41512cd37",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/AdasCameraScreen.kt": {
+    "mtime": 1785905542.5208938,
+    "ast_hash": "60204f70fd35b7e87d3b8e6894f30a30",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/AdasViewModel.kt": {
+    "mtime": 1785905534.6538932,
+    "ast_hash": "402476915ac45749b67ee3e6ade62a0a",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/AlertBanner.kt": {
+    "mtime": 1781200700.9584107,
+    "ast_hash": "5a3d1cd1c49b1c65bd9130a4b9e21ce6",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/Detection.kt": {
+    "mtime": 1780656988.0718024,
+    "ast_hash": "0bc8f783e06bd1727ab6f6d01b5ec1e6",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/DetectionOverlay.kt": {
+    "mtime": 1783359610.6617177,
+    "ast_hash": "0fadc896c257166d82f6f020bc24073b",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/EventLogScreen.kt": {
+    "mtime": 1781200700.9594092,
+    "ast_hash": "1640882a0e419b9527994a4db217ab08",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/FrameAnalyzer.kt": {
+    "mtime": 1785905522.1638057,
+    "ast_hash": "b1fc3d699cb06843180b24af54df27de",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/HomeScreen.kt": {
+    "mtime": 1782934709.220356,
+    "ast_hash": "3401697c7f0fe1d73fa8cf553e91e5b0",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/HudBottomBar.kt": {
+    "mtime": 1781200700.9604106,
+    "ast_hash": "93e2ac085cd0288d6ebcc496d4a4563e",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/HudTopBar.kt": {
+    "mtime": 1783290026.3434463,
+    "ast_hash": "08e49cfb7ad14948eead4614e3e40e82",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/InferenceEngine.kt": {
+    "mtime": 1785905786.35625,
+    "ast_hash": "0282ca5d0aecb1f03e24ba8dc55c5c63",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/MainActivity.kt": {
+    "mtime": 1781200700.9634101,
+    "ast_hash": "a82782037760a107f9f580bef16e78ec",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/PermissionScreen.kt": {
+    "mtime": 1781200700.9634101,
+    "ast_hash": "b32f8f881013f5540bb49f2a348af991",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/SettingsSheet.kt": {
+    "mtime": 1785905792.3920937,
+    "ast_hash": "6ed8b8fc625d10f77f6b90bc9c33e75b",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/SplashScreen.kt": {
+    "mtime": 1781200700.9644094,
+    "ast_hash": "0eaef74abe4e9dc7125f50085ae44c5a",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/dms/DrowsinessAnalyzer.kt": {
+    "mtime": 1785904038.8681636,
+    "ast_hash": "05d5cb88d867bbd62b41e0ae36cfcdd3",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/dms/DrowsinessSignals.kt": {
+    "mtime": 1785903959.4588065,
+    "ast_hash": "4f8c52507b3c9e7d99d0f4fc747dfe43",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/dms/FaceLandmarkSource.kt": {
+    "mtime": 1785904119.4504185,
+    "ast_hash": "eb6311e1458b8b2050de48774170220f",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/dms/SyntheticFace.kt": {
+    "mtime": 1785904076.699989,
+    "ast_hash": "b2759cd0d6aa4c0fd9df2dce7b871565",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/fcw/CollisionEstimator.kt": {
+    "mtime": 1785904786.1786494,
+    "ast_hash": "3a45f867537cdaa5a6d77441972d38bd",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/fcw/CollisionSignals.kt": {
+    "mtime": 1785904915.7355845,
+    "ast_hash": "510837b8ea6cb2228956f4098a4a637f",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/geo/GnssLocationProvider.kt": {
+    "mtime": 1783359844.8553662,
+    "ast_hash": "d48ce764304b80f17bb0b975c787b09e",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/lane/LaneDetector.kt": {
+    "mtime": 1785905390.506665,
+    "ast_hash": "87b840fdf3d3d85b913e8a87d9f25f90",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/lane/LaneGeometry.kt": {
+    "mtime": 1785905466.3570912,
+    "ast_hash": "fca16408ea4d0aecc427b2410893c6be",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/narrate/EventNarrator.kt": {
+    "mtime": 1785905909.4460242,
+    "ast_hash": "817fafe607880e12ad672b2643e169c2",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/obd/ObdBleManager.kt": {
+    "mtime": 1783388620.1108673,
+    "ast_hash": "039ea05b663853b00358f4ab0144470c",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/obd/ObdParsing.kt": {
+    "mtime": 1783388588.4931104,
+    "ast_hash": "5cd7f7a676a8363f7a51f7931bc071bd",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/obd/SimulatedTelemetrySource.kt": {
+    "mtime": 1783388646.9775288,
+    "ast_hash": "e55c0b976db0949e66ccdd4c286cb8b5",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/obd/TelemetrySource.kt": {
+    "mtime": 1783388598.715726,
+    "ast_hash": "b25a2bdc271fba639e5e1ea44694b104",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/privacy/FaceBlurrer.kt": {
+    "mtime": 1783359395.964717,
+    "ast_hash": "f88b51cdb0a6c90c17aa89be4dd22e64",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/rec/EventBuffer.kt": {
+    "mtime": 1785905113.4903636,
+    "ast_hash": "1fde41d1a5a1899c4b59178edc2a8f9c",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/rec/EventRecorder.kt": {
+    "mtime": 1785905229.510445,
+    "ast_hash": "75a8624312ae490230a90824c5ea8266",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/theme/Color.kt": {
+    "mtime": 1781200700.9644094,
+    "ast_hash": "590633f52e08f9808316edebf6eef84b",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/theme/Theme.kt": {
+    "mtime": 1781200700.9659154,
+    "ast_hash": "573e50d3c76d0e3c026f4c9448396685",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/theme/Type.kt": {
+    "mtime": 1781200700.9669204,
+    "ast_hash": "d332ba6304f6001ec4d569406c974c30",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/java/com/example/adas/upload/UploadClient.kt": {
+    "mtime": 1783388680.8070204,
+    "ast_hash": "2da354727de6017d6de4315b9777a00e",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/test/java/com/example/adas/CollisionEstimatorTest.kt": {
+    "mtime": 1785904922.8245316,
+    "ast_hash": "45b8394dcac97461ff054af207cfe04f",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/test/java/com/example/adas/DrowsinessAnalyzerTest.kt": {
+    "mtime": 1785904190.9790754,
+    "ast_hash": "2d9502460b25f21d673b701db4c4d96f",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/test/java/com/example/adas/EventBufferTest.kt": {
+    "mtime": 1785905150.5545516,
+    "ast_hash": "778e6973ac812d5ea0d9e1ddd069c62e",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/test/java/com/example/adas/EventNarratorTest.kt": {
+    "mtime": 1785905936.1613681,
+    "ast_hash": "917fa02959c428e04f1dd0f2520197d6",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/test/java/com/example/adas/LaneDepartureTest.kt": {
+    "mtime": 1785905419.675606,
+    "ast_hash": "8514666acd1e2c3a677695fd4b1a2023",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/test/java/com/example/adas/ObdParsingTest.kt": {
+    "mtime": 1783388739.1622605,
+    "ast_hash": "a7d867ed1027fa1211b1a1c1261f064d",
+    "semantic_hash": ""
+  },
+  "android_app/build.gradle.kts": {
+    "mtime": 1780664922.6902514,
+    "ast_hash": "aa88c6c665b41d3ab89c3cd8b0c7d128",
+    "semantic_hash": ""
+  },
+  "android_app/gradlew": {
+    "mtime": 1780826412.5050237,
+    "ast_hash": "780b1d3e23a3b82154795f73df943a14",
+    "semantic_hash": ""
+  },
+  "android_app/settings.gradle.kts": {
+    "mtime": 1780656801.515872,
+    "ast_hash": "57157b520d4b9a2c0e34b1fdeb07e012",
+    "semantic_hash": ""
+  },
+  "check_tflite_scale.py": {
+    "mtime": 1781200881.723349,
+    "ast_hash": "cf82ff5483fc26c1025273b50ca6845f",
+    "semantic_hash": ""
+  },
+  "cloud/ingestion/server.py": {
+    "mtime": 1785903729.6766112,
+    "ast_hash": "12bdd26cbe67118929e9067b22e77073",
+    "semantic_hash": ""
+  },
+  "cloud/scene_graph/annotate.py": {
+    "mtime": 1785905047.0276904,
+    "ast_hash": "6ed668258b4eeb3f5ff86a4988b2d469",
+    "semantic_hash": ""
+  },
+  "cloud/tests/test_ingestion.py": {
+    "mtime": 1785903705.0937996,
+    "ast_hash": "f3d7aeedc0dfebfc1f8f01b31f68b47e",
+    "semantic_hash": ""
+  },
+  "cloud/tests/test_scene_graph.py": {
+    "mtime": 1785903765.4134753,
+    "ast_hash": "85a2573a0308382ef9adceac5c7f24f1",
+    "semantic_hash": ""
+  },
+  "cloud/tests/test_vlm.py": {
+    "mtime": 1785903806.8832471,
+    "ast_hash": "553edc4222e35c806a74ff1c83644367",
+    "semantic_hash": ""
+  },
+  "cloud/vlm/finetune_vlm.py": {
+    "mtime": 1783388028.0892842,
+    "ast_hash": "f74a2f34988243644d9534dbd02bf9af",
+    "semantic_hash": ""
+  },
+  "esp32_firmware/main/camera_task.cpp": {
+    "mtime": 1780739744.9043753,
+    "ast_hash": "08c2282b79d0501fb9fbfe5ee2415d71",
+    "semantic_hash": ""
+  },
+  "esp32_firmware/main/camera_task.h": {
+    "mtime": 1780739615.6879148,
+    "ast_hash": "e9d6830b7ca5e94d97d42db75506138e",
+    "semantic_hash": ""
+  },
+  "esp32_firmware/main/can_obd_task.cpp": {
+    "mtime": 1780739744.8173828,
+    "ast_hash": "8381d57c77fdc8938d1cd2c10ee2040e",
+    "semantic_hash": ""
+  },
+  "esp32_firmware/main/can_obd_task.h": {
+    "mtime": 1780655772.3672948,
+    "ast_hash": "8a1bd399e36db35253f842f604627007",
+    "semantic_hash": ""
+  },
+  "esp32_firmware/main/h264_encoder_task.cpp": {
+    "mtime": 1780655796.273479,
+    "ast_hash": "3fc5897d8bf19c6ec2bae7a411ede217",
+    "semantic_hash": ""
+  },
+  "esp32_firmware/main/h264_encoder_task.h": {
+    "mtime": 1780655794.2614958,
+    "ast_hash": "ccc37fd78fe39b907ade2c41d6f6e613",
+    "semantic_hash": ""
+  },
+  "esp32_firmware/main/inference_task.cpp": {
+    "mtime": 1780655800.3030806,
+    "ast_hash": "c72410535bc39df45ef803808c9c0574",
+    "semantic_hash": ""
+  },
+  "esp32_firmware/main/inference_task.h": {
+    "mtime": 1780655798.2924273,
+    "ast_hash": "b2ce9fd8441bed08be54726db3ba4cf4",
+    "semantic_hash": ""
+  },
+  "esp32_firmware/main/kalman_tracker.cpp": {
+    "mtime": 1780655792.2469144,
+    "ast_hash": "317701adb851fdd268a56cff96330226",
+    "semantic_hash": ""
+  },
+  "esp32_firmware/main/kalman_tracker.h": {
+    "mtime": 1780655789.6148062,
+    "ast_hash": "8b606b7820c7ba87284f2f55d67daad2",
+    "semantic_hash": ""
+  },
+  "esp32_firmware/main/main.cpp": {
+    "mtime": 1780655820.2529364,
+    "ast_hash": "ca42a2f493cdf7803731a9343f6f708d",
+    "semantic_hash": ""
+  },
+  "export_model.py": {
+    "mtime": 1783163732.214101,
+    "ast_hash": "3be70a5df0ea56f5c9a7437d7eab8734",
+    "semantic_hash": ""
+  },
+  "training/env.sh": {
+    "mtime": 1782892880.955973,
+    "ast_hash": "039034d8fd75e6f53ffddb463208ec53",
+    "semantic_hash": ""
+  },
+  "training/idd_to_yolo.py": {
+    "mtime": 1782918952.7547235,
+    "ast_hash": "9f0d6f690c3187959fa08f07b29484ea",
+    "semantic_hash": ""
+  },
+  "training/train.py": {
+    "mtime": 1782919811.0551054,
+    "ast_hash": "60cb4ea9b2faadedfc48fc7ab0e533ef",
+    "semantic_hash": ""
+  },
+  "training/train_v2.py": {
+    "mtime": 1785905685.3852367,
+    "ast_hash": "95ba4ee4b71d74182ec7fa0e10420bfc",
+    "semantic_hash": ""
+  },
+  "ADAS plan.txt": {
+    "mtime": 1782410826.816748,
+    "ast_hash": "4d39ac93085d5753ab9c3249b05861bf",
+    "semantic_hash": ""
+  },
+  "BUG_REPORT.md": {
+    "mtime": 1782408654.5564263,
+    "ast_hash": "53d8036410fdc26d9d6a63682b320625",
+    "semantic_hash": ""
+  },
+  "DATASET_LICENSE.md": {
+    "mtime": 1783284806.468371,
+    "ast_hash": "408f8103625ab85b721140101bb15b88",
+    "semantic_hash": ""
+  },
+  "HANDOVER.md": {
+    "mtime": 1785906025.0853252,
+    "ast_hash": "263054f66a94da5697c600a417f9349d",
+    "semantic_hash": ""
+  },
+  "HANDOVER_2026-06-26.md": {
+    "mtime": 1782555531.3649983,
+    "ast_hash": "d0b5d2fe52563782f740ee01643c964f",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1783388197.0387332,
+    "ast_hash": "9a2cf371c583a89a4b277b36187757e0",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/assets/idd_labels.txt": {
+    "mtime": 1782934616.2224624,
+    "ast_hash": "17c6b17f6f98bb7c93024d5a2d184498",
+    "semantic_hash": ""
+  },
+  "cloud/README.md": {
+    "mtime": 1785903856.9093952,
+    "ast_hash": "7edece0f2e8c53d9fb3119a40cfc5970",
+    "semantic_hash": ""
+  },
+  "cloud/ingestion/README.md": {
+    "mtime": 1783388099.1857119,
+    "ast_hash": "c3b9ec13d361f585864b6bb9d9ea1a74",
+    "semantic_hash": ""
+  },
+  "esp32_firmware/CMakeLists.txt": {
+    "mtime": 1780826848.9765248,
+    "ast_hash": "43d740593212e695b56439ed7c2075bd",
+    "semantic_hash": ""
+  },
+  "esp32_firmware/main/CMakeLists.txt": {
+    "mtime": 1780655818.2323031,
+    "ast_hash": "a814428f57fc49aa182848cc99b2d182",
+    "semantic_hash": ""
+  },
+  "esp32_firmware/yolov8_quantization_guide.md": {
+    "mtime": 1780655836.9796343,
+    "ast_hash": "f8a169981b27c98b079e4f21c9a97678",
+    "semantic_hash": ""
+  },
+  "requirements.txt": {
+    "mtime": 1782892888.93969,
+    "ast_hash": "5c5888bbcf32a908df307bab2974eb6c",
+    "semantic_hash": ""
+  },
+  "training/README.md": {
+    "mtime": 1782895338.2173808,
+    "ast_hash": "e259efa742a0da1d077421d048bc780d",
+    "semantic_hash": ""
+  },
+  "AI Dashcam for Indian Roads_260403_020448.pdf": {
+    "mtime": 1780648992.3548872,
+    "ast_hash": "ded4e920e007faa4cc8b559c62fb2fbb",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/res/mipmap-hdpi/ic_launcher.webp": {
+    "mtime": 1780656801.5288846,
+    "ast_hash": "39d9bb21eb48f128a71c3f01ad3cd427",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/res/mipmap-hdpi/ic_launcher_round.webp": {
+    "mtime": 1780656801.5294352,
+    "ast_hash": "70d6f58af3c76ee221c829b1ce9daa04",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/res/mipmap-mdpi/ic_launcher.webp": {
+    "mtime": 1780656801.530442,
+    "ast_hash": "d2acce71c7b46e5e9540d23a9f7b2166",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/res/mipmap-mdpi/ic_launcher_round.webp": {
+    "mtime": 1780656801.530442,
+    "ast_hash": "6376acb48f96a855ee95c113cd7fd616",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/res/mipmap-xhdpi/ic_launcher.webp": {
+    "mtime": 1780656801.5314395,
+    "ast_hash": "bd087d80b70bec05a43c745f29dc3ffc",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/res/mipmap-xhdpi/ic_launcher_round.webp": {
+    "mtime": 1780656801.5314395,
+    "ast_hash": "7479edd56ab712609f030054bffd7263",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/res/mipmap-xxhdpi/ic_launcher.webp": {
+    "mtime": 1780656801.5324395,
+    "ast_hash": "ea180e8d1a2e8300cc998b987266b736",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.webp": {
+    "mtime": 1780656801.5324395,
+    "ast_hash": "947842742b29eeda80ee0805e1600366",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp": {
+    "mtime": 1780656801.5334399,
+    "ast_hash": "54ab624970c86c2146e76b93f27586f7",
+    "semantic_hash": ""
+  },
+  "android_app/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp": {
+    "mtime": 1780656801.5334399,
+    "ast_hash": "9ee591be72fb336861a8044086054daa",
+    "semantic_hash": ""
+  }
+}
