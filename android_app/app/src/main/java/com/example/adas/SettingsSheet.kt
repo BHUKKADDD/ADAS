@@ -36,6 +36,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.adas.dms.DmsPhase
+import com.example.adas.dms.DriverAlertLevel
 import com.example.adas.obd.ObdConnectionState
 import com.example.adas.theme.AdasTheme
 import com.example.adas.theme.HudFontFamily
@@ -109,6 +111,13 @@ fun SettingsSheet(
             HorizontalDivider(color = AdasTheme.colors.hudDim.copy(alpha = 0.2f))
             Spacer(modifier = Modifier.height(16.dp))
 
+            // ── Section: Driver Monitoring (DDAWS / AIS-184) ──────────────────
+            DriverMonitoringSection(viewModel = viewModel)
+
+            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(color = AdasTheme.colors.hudDim.copy(alpha = 0.2f))
+            Spacer(modifier = Modifier.height(16.dp))
+
             // ── Section: Locked ADAS Presets ──────────────────────────────────
             SettingsSectionHeader("SAFETY PRESETS (LOCKED BY ADMIN)")
             Spacer(modifier = Modifier.height(12.dp))
@@ -127,9 +136,11 @@ fun SettingsSheet(
             SettingsSectionHeader("MODEL & HARDWARE INFO")
             Spacer(modifier = Modifier.height(12.dp))
 
-            SettingsInfoRow("Active Neural Model",   "YOLOv8n · IDD (float32)")
+            SettingsInfoRow("Active Neural Model",   "YOLOv8n · IDD (INT8)")
             SettingsInfoRow("Input Frame Resolution", "320 × 320 px")
-            SettingsInfoRow("Inference Acceleration", "NNAPI / GPU Auto")
+            // NNAPI was deprecated in Android 15; the real path is XNNPACK CPU,
+            // with the GPU delegate available but opt-in until measured.
+            SettingsInfoRow("Inference Acceleration", "XNNPACK CPU · 4 threads")
             SettingsInfoRow("Classes Configured",     "12 IDD (autorickshaw, rider, animal, …)")
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -380,6 +391,132 @@ private fun SettingsThemeRow(
                 checkedTrackColor   = AdasTheme.colors.cyan.copy(alpha = 0.3f),
                 uncheckedThumbColor = AdasTheme.colors.hudDim,
                 uncheckedTrackColor = AdasTheme.colors.hudDim.copy(alpha = 0.2f)
+            )
+        )
+    }
+}
+
+/**
+ * Driver monitoring (DDAWS / AIS-184) controls: live driver state, the calibrated
+ * baseline, PERCLOS, and the bench simulator toggle.
+ *
+ * The real front-camera source is not wired yet (it needs the MediaPipe dependency
+ * and the face_landmarker.task asset — see the note at the foot of
+ * dms/FaceLandmarkSource.kt), so the simulator is the only source today. The
+ * analyzer behind it is the production one.
+ */
+@Composable
+private fun DriverMonitoringSection(viewModel: AdasViewModel) {
+    val colors = AdasTheme.colors
+    val dms by viewModel.dmsState.collectAsState()
+    val isSimulated by viewModel.isDmsSimulated.collectAsState()
+
+    val phaseText = when (dms.phase) {
+        DmsPhase.IDLE -> "Inactive"
+        DmsPhase.CALIBRATING -> "Calibrating ${(dms.calibrationProgress * 100).toInt()}%"
+        DmsPhase.MONITORING -> "Monitoring"
+        DmsPhase.NO_FACE -> "Driver not visible"
+    }
+    val phaseColor = when {
+        dms.alert == DriverAlertLevel.DANGER -> colors.offline
+        dms.alert == DriverAlertLevel.CAUTION -> colors.amber
+        dms.phase == DmsPhase.MONITORING -> colors.green
+        dms.phase == DmsPhase.IDLE -> colors.hudDim
+        else -> colors.amber
+    }
+
+    SettingsSectionHeader("DRIVER MONITORING (DDAWS · AIS-184)")
+    Spacer(modifier = Modifier.height(12.dp))
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Driver State",
+            fontFamily = HudFontFamily,
+            fontSize = 12.sp,
+            color = colors.hudText,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = phaseText,
+            fontFamily = HudFontFamily,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
+            color = phaseColor
+        )
+    }
+
+    // Live metrics, shown only once there is a calibrated baseline to compare against.
+    if (dms.phase == DmsPhase.MONITORING) {
+        val metrics = listOfNotNull(
+            "PERCLOS ${(dms.perclos * 100).toInt()}%",
+            dms.ear?.let { "EAR ${"%.2f".format(it)}" },
+            if (dms.yawns > 0) "${dms.yawns} yawns" else null
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Fatigue",
+                fontFamily = HudFontFamily,
+                fontSize = 12.sp,
+                color = colors.hudText,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = metrics.joinToString("  ·  "),
+                fontFamily = HudFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                color = colors.cyan
+            )
+        }
+    }
+
+    if (dms.message.isNotEmpty()) {
+        Text(
+            text = dms.message,
+            fontFamily = HudFontFamily,
+            fontSize = 10.sp,
+            color = phaseColor.copy(alpha = 0.85f)
+        )
+    }
+
+    Spacer(modifier = Modifier.height(10.dp))
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Simulated Driver",
+                fontFamily = HudFontFamily,
+                fontSize = 13.sp,
+                color = colors.textPrimary
+            )
+            Text(
+                text = "Bench test a scripted drowsy driver (no camera)",
+                fontFamily = HudFontFamily,
+                fontSize = 10.sp,
+                color = colors.hudDim
+            )
+        }
+        Switch(
+            checked = isSimulated,
+            onCheckedChange = { viewModel.setDmsSimulated(it) },
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = colors.amber,
+                checkedTrackColor = colors.amber.copy(alpha = 0.3f),
+                uncheckedThumbColor = colors.hudDim,
+                uncheckedTrackColor = colors.hudDim.copy(alpha = 0.2f)
             )
         )
     }

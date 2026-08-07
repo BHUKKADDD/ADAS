@@ -129,8 +129,15 @@ def fetch(tenant, device=None, label=None, limit=100):
     if label:
         q += " AND detections LIKE ?"
         params.append(f'%"label": "{label}%')
+    # `limit` arrives straight off the query string, so a non-numeric value must
+    # not raise here: an uncaught exception in the handler thread drops the
+    # connection with no response at all. Fall back to the default instead.
+    try:
+        lim = int(limit)
+    except (TypeError, ValueError):
+        lim = 100
     q += " ORDER BY id DESC LIMIT ?"
-    params.append(max(1, min(int(limit), 1000)))
+    params.append(max(1, min(lim, 1000)))
     con = sqlite3.connect(DB_PATH)
     con.row_factory = sqlite3.Row
     rows = con.execute(q, params).fetchall()

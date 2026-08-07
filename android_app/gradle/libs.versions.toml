@@ -49,6 +49,9 @@ camera-view = { module = "androidx.camera:camera-view", version.ref = "cameraX" 
 # TFLite
 tflite = { module = "org.tensorflow:tensorflow-lite", version.ref = "tflite" }
 tflite-support = { module = "org.tensorflow:tensorflow-lite-support", version.ref = "tfliteSupport" }
+# GPU delegate. NOT NNAPI: NNAPI is deprecated as of Android 15.
+tflite-gpu = { module = "org.tensorflow:tensorflow-lite-gpu", version.ref = "tflite" }
+tflite-gpu-api = { module = "org.tensorflow:tensorflow-lite-gpu-api", version.ref = "tflite" }
 # Accompanist Permissions
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanistPermissions" }
 

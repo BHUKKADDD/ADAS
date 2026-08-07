@@ -5,6 +5,8 @@ import android.graphics.Matrix
 import android.graphics.RectF
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import com.example.adas.lane.LaneDetector
+import com.example.adas.lane.LaneLine
 import com.example.adas.privacy.FaceBlurrer
 import java.io.Closeable
 import kotlinx.coroutines.CoroutineScope
@@ -36,7 +38,15 @@ class FrameAnalyzer(
     private val onResults: (List<Detection>) -> Unit,
     private val onFrameAspect: (Float) -> Unit = {},
     private val onFaces: (List<RectF>) -> Unit = {},
-    private val enableFaceBlur: Boolean = true
+    private val enableFaceBlur: Boolean = true,
+    /**
+     * Upright frame plus its best-known face boxes, delivered on the **analysis
+     * thread** so the event recorder can redact and compress off the main thread.
+     */
+    private val onFrameForRecording: (Bitmap, List<RectF>) -> Unit = { _, _ -> },
+    /** Fitted lane boundaries (left, right); either may be null. Main thread. */
+    private val onLane: (LaneLine?, LaneLine?) -> Unit = { _, _ -> },
+    private val enableLaneDetection: Boolean = true
 ) : ImageAnalysis.Analyzer, Closeable {
 
     // A supervised scope so one failed frame doesn't cancel the entire pipeline
@@ -51,6 +61,13 @@ class FrameAnalyzer(
     // every other frame to spare the CPU budget).
     private val faceBlurrer = FaceBlurrer()
     private var frameCount = 0L
+
+    // Most recent face detection, reused on frames where face detection was skipped.
+    @Volatile
+    private var lastFaces: List<RectF> = emptyList()
+
+    // Lane departure warning (AIS-188): classical CV, no model, no licence.
+    private val laneDetector = LaneDetector()
 
     override fun analyze(image: ImageProxy) {
         if (pendingJob?.isActive == true) {
@@ -82,13 +99,31 @@ class FrameAnalyzer(
                 lastReportedAspect = aspect
                 onFrameAspect(aspect)
             }
-            val doFaces = enableFaceBlur && (frameCount++ % 2 == 0L)
+            val doFaces = enableFaceBlur && (frameCount % 2 == 0L)
+            val doLanes = enableLaneDetection && (frameCount % 3 == 0L)
+            frameCount++
             pendingJob = analyzerScope.launch {
                 val results = engine.detect(bitmap)
                 val faces = if (doFaces) faceBlurrer.detect(bitmap) else null
+                if (faces != null) lastFaces = faces
+
+                // Recording happens here, on the analysis thread, and uses the most
+                // recent face boxes even on frames where detection was skipped —
+                // a slightly stale redaction box is far better than none.
+                onFrameForRecording(bitmap, lastFaces)
+
+                // Lane detection every third frame: it is pure CPU pixel work
+                // sharing a thread with inference, and lane geometry changes far
+                // more slowly than the objects in front of the vehicle.
+                val lane = if (doLanes) {
+                    val (l, r) = laneDetector.detect(bitmap)
+                    if (laneDetector.isPlausibleLane(l, r)) l to r else l to null
+                } else null
+
                 withContext(Dispatchers.Main) {
                     onResults(results)
                     if (faces != null) onFaces(faces)
+                    lane?.let { (l, r) -> onLane(l, r) }
                 }
             }
         }

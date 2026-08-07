@@ -101,6 +101,9 @@ dependencies {
   implementation(libs.tflite.support) {
       exclude(group = "org.tensorflow", module = "tensorflow-lite-support-api")
   }
+  // GPU delegate (optional at runtime; falls back to XNNPACK CPU).
+  implementation(libs.tflite.gpu)
+  implementation(libs.tflite.gpu.api)
 
   // Accompanist Permissions (for Compose)
   implementation(libs.accompanist.permissions)

@@ -96,7 +96,10 @@ fun AdasCameraScreen(
                 viewModel.onFrameProcessed()
             },
             onFrameAspect = { aspect -> viewModel.updateFrameAspect(aspect) },
-            onFaces = { faces -> viewModel.updateFaceBoxes(faces) }
+            onFaces = { faces -> viewModel.updateFaceBoxes(faces) },
+            // Analysis thread: feeds the event recorder's pre-roll ring buffer.
+            onFrameForRecording = { bitmap, faces -> viewModel.onAnalyzerFrame(bitmap, faces) },
+            onLane = { left, right -> viewModel.updateLane(left, right) }
         )
     }
 

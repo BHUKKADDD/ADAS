@@ -9,6 +9,8 @@ import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.tensorflow.lite.Interpreter
+import org.tensorflow.lite.gpu.CompatibilityList
+import org.tensorflow.lite.gpu.GpuDelegate
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.nio.ByteBuffer
@@ -31,7 +33,15 @@ class InferenceEngine(
     private val context: Context,
     // Minimum class score for a prediction to be kept. Sourced from the
     // ViewModel's fixed preset so the app has a single confidence source of truth.
-    private val confidenceThreshold: Float = DEFAULT_CONFIDENCE_THRESHOLD
+    private val confidenceThreshold: Float = DEFAULT_CONFIDENCE_THRESHOLD,
+    /**
+     * Compute path. Defaults to [Accelerator.CPU] — the XNNPACK path that
+     * measured 12–15 FPS on the A55. GPU is implemented and falls back safely,
+     * but for this INT8 model it is an unmeasured change, so it is opt-in rather
+     * than the default: switching the safety path on an unverified assumption is
+     * the wrong trade.
+     */
+    private val accelerator: Accelerator = Accelerator.CPU
 ) {
 
     companion object {
@@ -62,14 +72,79 @@ class InferenceEngine(
         val size: Int          // square side (= INPUT_SIZE)
     )
 
+    /**
+     * Which compute path inference runs on.
+     *
+     * **NNAPI is deliberately absent**: it was deprecated in Android 15, and the
+     * migration guidance is the GPU delegate or XNNPACK. The LiteRT QNN
+     * accelerator would be the NPU option, but it is Qualcomm-only and so does
+     * nothing on the Exynos-based Galaxy A55 this app is tuned against.
+     */
+    enum class Accelerator {
+        /** XNNPACK-accelerated CPU, 4 threads. The measured 12–15 FPS baseline. */
+        CPU,
+        /** GPU delegate, falling back to [CPU] if unavailable at runtime. */
+        GPU
+    }
+
+    /** Which path actually initialised — GPU can fall back, so this may differ. */
+    @Volatile
+    var activeAccelerator: Accelerator = accelerator
+        private set
+
+    private var gpuDelegate: GpuDelegate? = null
+
     // Lazy-loaded — model file is memory-mapped from assets on first use.
     // Held via an explicit Lazy so close() can release it only if it was ever created.
     private val interpreterLazy = lazy {
-        val model   = loadModelFile(context, MODEL_FILENAME)
-        val options = Interpreter.Options().apply { numThreads = 4 }
-        Interpreter(model, options)
+        val model = loadModelFile(context, MODEL_FILENAME)
+        buildInterpreter(model)
     }
     private val interpreter: Interpreter by interpreterLazy
+
+    /**
+     * Build the interpreter on the requested accelerator, degrading to CPU rather
+     * than failing: a device that cannot start the GPU delegate must still run
+     * the detector, since this is the safety-critical path.
+     */
+    private fun buildInterpreter(model: MappedByteBuffer): Interpreter {
+        if (accelerator == Accelerator.GPU) {
+            try {
+                val compat = CompatibilityList()
+                if (compat.isDelegateSupportedOnThisDevice) {
+                    val delegate = GpuDelegate(
+                        compat.bestOptionsForThisDevice.apply {
+                            // The shipped model is INT8. The GPU delegate only
+                            // accepts quantized graphs with this flag, and even
+                            // then INT8-on-GPU is not automatically faster than
+                            // INT8-on-XNNPACK — it must be measured per device.
+                            setQuantizedModelsAllowed(true)
+                        }
+                    )
+                    gpuDelegate = delegate
+                    val options = Interpreter.Options().apply { addDelegate(delegate) }
+                    val interp = Interpreter(model, options)
+                    activeAccelerator = Accelerator.GPU
+                    Log.i(TAG, "inference on GPU delegate")
+                    return interp
+                }
+                Log.w(TAG, "GPU delegate unsupported on this device; using CPU")
+            } catch (e: Throwable) {
+                // Delegate creation can fail with a LinkageError on some OEM
+                // builds, which a catch on Exception would let through.
+                Log.w(TAG, "GPU delegate init failed; falling back to CPU", e)
+                gpuDelegate?.close()
+                gpuDelegate = null
+            }
+        }
+        val options = Interpreter.Options().apply {
+            numThreads = 4
+            setUseXNNPACK(true)
+        }
+        activeAccelerator = Accelerator.CPU
+        Log.i(TAG, "inference on CPU (XNNPACK, 4 threads)")
+        return Interpreter(model, options)
+    }
 
     // Set once if the model/labels assets fail to load, so we don't spam logcat every frame.
     @Volatile
@@ -133,6 +208,10 @@ class InferenceEngine(
         if (interpreterLazy.isInitialized()) {
             interpreter.close()
         }
+        // The delegate outlives the interpreter and leaks GPU memory if not
+        // released; order matters, interpreter first.
+        gpuDelegate?.close()
+        gpuDelegate = null
     }
 
     // ── Pre-processing ────────────────────────────────────────────────────────

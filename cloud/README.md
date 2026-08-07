@@ -11,9 +11,30 @@ firewall" and `training/train_v2.py` (the firewall-enforced v2 training entry).
 
 | Dir | What | Status |
 |-----|------|--------|
-| `ingestion/` | Multi-tenant anomaly ingestion API + SQLite/JSONL data lake + B2B dashboard (stdlib only) | Verified: phone→cloud loop live; 10/10 auth/tenancy/filter tests |
-| `scene_graph/` | Anomaly packets → per-event scene graphs (ego + road users + relations + risk tag) | Verified against the live lake; geometric edges land when clip/bbox upload ships |
-| `vlm/` | LoRA + projection-MLP VLM fine-tuning harness (frozen backbones, adapters only) | `--smoke` passes: loss ↓ on real lake packets; real checkpoints drop in behind the same interfaces |
+| `ingestion/` | Multi-tenant anomaly ingestion API + SQLite/JSONL data lake + B2B dashboard (stdlib only) | Verified: phone→cloud loop live; 32 committed tests (auth/tenancy/filters/storage/migration) |
+| `scene_graph/` | Anomaly packets → per-event scene graphs (ego + road users + relations + risk tag) | Verified against the live lake; 25 committed tests; geometric edges land when clip/bbox upload ships |
+| `vlm/` | LoRA + projection-MLP VLM fine-tuning harness (frozen backbones, adapters only) | `--smoke` passes: loss ↓ on real lake packets; 23 committed tests; real checkpoints drop in behind the same interfaces |
+
+## Tests
+
+```
+python3 -m unittest discover -s cloud/tests -v
+```
+
+80 tests, run from the repo root. Stdlib only — no pip installs — except the 23
+`test_vlm.py` cases, which **skip cleanly** when PyTorch is absent. To run those
+too: `source ~/adas-train/bin/activate` first. Tests never touch
+`cloud/ingestion/data/`; the DB and lake paths are redirected to a temp dir, and
+the HTTP tests bind an ephemeral port.
+
+Worth knowing about two of them:
+
+- `test_multihead_attention_is_never_injected` guards the LoRA bug fixed in
+  `9956645` — `nn.MultiheadAttention` reads `out_proj.weight` directly, bypassing
+  `forward()`, so wrapping it silently breaks the module.
+- `test_spatial_relations_is_an_empty_hook_today` asserts scene graphs carry no
+  geometric edges. **It is meant to fail once REC ships clip/bbox upload** — that
+  failure is the signal to implement the hook, not a regression.
 
 ## Data flow
 

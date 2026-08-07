@@ -25,7 +25,11 @@ import argparse
 import json
 import sys
 
-# Mirrors AdasViewModel's alert taxonomy (kept in sync by convention).
+# Mirrors the app's road-user taxonomy (kept in sync by convention). The danger
+# set now lives in android_app/.../fcw/CollisionSignals.kt as VULNERABLE_LABELS,
+# where on-device it buys a longer time-to-collision warning threshold rather than
+# an unconditional alert. Here it stays a coarse risk tag: packets carry no
+# bounding boxes yet, so there is nothing to compute a TTC from server-side.
 DANGER_LABELS = {"person", "rider", "bicycle", "animal"}
 CAUTION_LABELS = {"motorcycle", "car", "autorickshaw", "truck", "bus", "vehicle_fallback"}
 
